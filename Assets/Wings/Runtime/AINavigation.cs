@@ -37,7 +37,7 @@ namespace Wings.AI
             // 床(Default)と壁(Wall)を対象にし、細かな領域を扱うためボクセル幅を0.16mに設定する。
             n.Surface.collectObjects = CollectObjects.Children;
             n.Surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
-            n.Surface.layerMask = (1 << 0) | Arena.WallMask;
+            n.Surface.layerMask = (1 << 0) | Arena.OcclusionMask;
             n.Surface.overrideVoxelSize = true;
             n.Surface.voxelSize = .16f;
             Physics.SyncTransforms();
@@ -216,7 +216,7 @@ namespace Wings.AI
                             if (distance > radius + other.Radius + 1.2f)
                                 continue;
                             // 壁越しの身体では回避しない。近傍情報から戦闘相手を発見することもない。
-                            if (Physics.Linecast(body.Center, other.Center, Arena.WallMask))
+                            if (Physics.Linecast(body.Center, other.Center, Arena.OcclusionMask))
                                 continue;
                             if (distance < .01f)
                                 delta = Quaternion.Euler(0, Mathf.Abs(body.Id % 360), 0) * Vector3.forward;

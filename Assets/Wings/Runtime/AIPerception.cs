@@ -191,7 +191,8 @@ namespace Wings.AI
             Settings.horizontalFov = config.allyFov;
             Settings.scanInterval = config.scanInterval;
             Settings.memorySeconds = config.memorySeconds;
-            Settings.occlusionMask = config.occlusionMask;
+            // 地形の尾根も実際に視界を遮る。壁の設定値にmapCの床レイヤーを必ず加える。
+            Settings.occlusionMask = config.occlusionMask | Arena.TerrainMask;
             nextScan = Time.time + (Mathf.Abs(body.Id) % 7) * .015f;
         }
 
@@ -318,7 +319,7 @@ namespace Wings.AI
             // 狙う点は最後に観測した位置。隠れた相手の現在位置で記憶を更新しない。
             if (Vector3.Distance(muzzle, c.Position) > weaponRange)
                 return false;
-            return throughWall || !Physics.Linecast(muzzle, c.Position, Arena.WallMask, QueryTriggerInteraction.Ignore);
+            return throughWall || !Physics.Linecast(muzzle, c.Position, Arena.OcclusionMask, QueryTriggerInteraction.Ignore);
         }
 
         /// <summary>

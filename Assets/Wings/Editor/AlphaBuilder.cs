@@ -83,5 +83,23 @@ namespace Wings.Editor
                 throw new Exception("WINGS AI build failed: " + result.summary.result);
             Debug.Log("WINGS AI BUILD SUCCEEDED: " + result.summary.outputPath);
         }
+
+        /// <summary>mapCを含む実行版を別フォルダーへ作る。既存のα版・AI改善版は保持する。</summary>
+        [MenuItem("WINGS/Build Map C")]
+        public static void BuildMapC()
+        {
+            AssetDatabase.SaveAssets();
+            Directory.CreateDirectory("Builds/MapC");
+            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = "Builds/MapC/WINGS_REVOLT_MapC.exe",
+                target = BuildTarget.StandaloneWindows64,
+                options = BuildOptions.Development
+            });
+            if (result.summary.result != BuildResult.Succeeded)
+                throw new Exception("WINGS MAP C build failed: " + result.summary.result);
+            Debug.Log("WINGS MAP C BUILD SUCCEEDED: " + result.summary.outputPath);
+        }
     }
 }

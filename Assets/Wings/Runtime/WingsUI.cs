@@ -194,6 +194,8 @@ namespace Wings
                 OrdersUI();
             if (State == GameState.Playing && ShowAIDebug)
                 AIDebugUI();
+            if (State == GameState.Playing)
+                MapCObservationUI();
             if (State == GameState.Playing && NoticeTime > 0)
             {
                 Box(new Rect(410, 157, 780, 54), Panel);
@@ -233,36 +235,46 @@ namespace Wings
         }
 
         /// <summary>
-        /// 2つの防衛区域と最高記録を描き、選択した区域から編成画面へ進める。
+        /// 3つの防衛区域と最高記録を描き、選択した区域から編成画面へ進める。
         /// </summary>
         void StagesUI()
         {
             Box(new Rect(0, 0, 1600, 900), Ink);
             Header("MISSION SELECT / 01", "防衛区域を選択", "侵略軍の残党が接近中。4羽の部隊を編成してタワーを守り抜こう。");
-            for (int i = 0; i < 2; i++)
+            string[] names = { "A / 凍てつく前哨基地", "B / 黄昏の侵攻跡地", "C / 段丘の迷宮" };
+            string[] notes =
             {
-                float x = 65 + i * 750;
-                Color c = i == 0 ? Cyan : new Color(1, .55f, .34f);
-                Box(new Rect(x, 237, 720, 482), Panel);
-                Box(new Rect(x, 237, 720, 5), c);
+                "3ウェーブ / 平坦な前哨基地\n4方向の侵入と開けた射線。\n部隊指示と能力の基本を確認。",
+                "4ウェーブ / 遮蔽物の多い跡地\n侵攻間隔が短い防衛戦。\n大型侵攻兵器を迎え撃つ。",
+                "4ウェーブ / 広さ4倍・高低差16m\n坂道・高台・低地・曲がり角。\nF2の俯瞰でAIの経路を観察。"
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                float x = 65 + i * 500;
+                Color c = i == 0 ? Cyan : i == 1 ? new Color(1, .55f, .34f) : new Color(.98f, .78f, .35f);
+                Box(new Rect(x, 237, 470, 482), Panel);
+                Box(new Rect(x, 237, 470, 5), c);
                 // 各防衛区域の入口とタワーを簡略化した俯瞰図。実際の移動地図とは別の表示。
-                for (int n = 0; n < 9; n++)
-                    Box(new Rect(x + 32 + n * 78, 275, 1, 135), new Color(.13f, .23f, .29f));
-                Disc(new Rect(x + 325, 299, 64, 64), c);
+                for (int n = 0; n < 7; n++)
+                    Box(new Rect(x + 32 + n * 65, 275, 1, 135), new Color(.13f, .23f, .29f));
+                Disc(new Rect(x + 203, 310, 54, 54), c);
+                if (i == 2)
+                {
+                    Box(new Rect(x + 62, 295, 35, 90), new Color(.4f, .5f, .6f));
+                    Box(new Rect(x + 135, 286, 120, 9), c);
+                    Box(new Rect(x + 195, 380, 140, 9), c);
+                    Box(new Rect(x + 330, 320, 7, 60), c);
+                }
                 for (int n = 0; n < 4; n++)
                 {
                     float a = n * Mathf.PI * .5f;
-                    Box(new Rect(x + 351 + Mathf.Cos(a) * 180, 326 + Mathf.Sin(a) * 70, 14, 14), Red);
+                    Box(new Rect(x + 224 + Mathf.Cos(a) * 180, 330 + Mathf.Sin(a) * 70, 14, 14), Red);
                 }
 
-                Text(new Rect(x + 34, 438, 650, 45), i == 0 ? "A / 凍てつく前哨基地" : "B / 黄昏の侵攻跡地", 29, White, FontStyle.Bold);
-                Text(new Rect(x + 34, 494, 650, 85),
-                    i == 0 ? "3ウェーブ。開けた射線と4方向の侵入口。\n仲間への指示と能力の基本を確かめる区域。"
-                    : "4ウェーブ。遮蔽物が増え、侵攻間隔も短い。\n最後は大型侵攻兵器を撃破して防衛を完遂。",
-                    21,
-                    Muted);
-                Text(new Rect(x + 34, 592, 650, 33), "BEST  " + PlayerPrefs.GetInt("Wings.Best." + i, 0).ToString("N0"), 18, c);
-                if (Button(new Rect(x + 34, 644, 650, 50), "この区域へ出撃準備", true, accent: c))
+                Text(new Rect(x + 26, 438, 420, 45), names[i], 25, White, FontStyle.Bold);
+                Text(new Rect(x + 26, 494, 420, 95), notes[i], 20, Muted);
+                Text(new Rect(x + 26, 599, 420, 33), "BEST  " + PlayerPrefs.GetInt("Wings.Best." + i, 0).ToString("N0"), 18, c);
+                if (Button(new Rect(x + 26, 650, 418, 50), "この区域へ出撃準備", true, accent: c))
                 {
                     Stage = i;
                     SetState(GameState.Characters);
@@ -511,7 +523,7 @@ namespace Wings
                 bool hunterVision = p.Definition.bird == Bird.Hawk && p.UltimateTimer > 0;
                 if (!hunterVision
                     && Physics.Linecast(Viewport.transform.position, e.transform.position + Vector3.up * (e.Boss ? 2
-                    : 1.2f), Arena.WallMask))
+                    : 1.2f), Arena.OcclusionMask))
                     continue;
                 var pos = Viewport.WorldToViewportPoint(e.transform.position + Vector3.up * (e.Boss ? 4 : 2.2f));
                 if (pos.z <= 0 || pos.x < 0 || pos.x > 1 || pos.y < 0 || pos.y > 1)

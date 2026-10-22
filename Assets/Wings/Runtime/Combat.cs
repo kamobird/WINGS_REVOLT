@@ -24,7 +24,7 @@ namespace Wings
         public EnemyBrain Brain { get; private set; }
 
         CharacterController motor;
-        float attackTimer, stagger;
+        float attackTimer, stagger, verticalVelocity;
         Vector3 knock;
         Renderer body;
 
@@ -150,7 +150,12 @@ namespace Wings
             // 【判断→身体】センサーとFSMが決めた方向を既存CharacterControllerへ渡す。ここで別の標的を探さない。
             var intent = Brain.Tick(Time.time);
             Vector3 dir = intent.Direction;
-            motor.Move((dir * (kind == 1 ? 4.8f : Boss ? 1.8f : 2.6f) * (slowed > 0 ? .4f : 1) + Vector3.down * 2) * dt);
+            // 下り坂でも浮き続けないよう重力を積分する。坂を上る処理はCharacterControllerの斜面判定に任せる。
+            if (motor.isGrounded && verticalVelocity < 0)
+                verticalVelocity = -2;
+            verticalVelocity -= 22 * dt;
+            motor.Move((dir * (kind == 1 ? 4.8f : Boss ? 1.8f : 2.6f) * (slowed > 0 ? .4f : 1)
+                + Vector3.up * verticalVelocity) * dt);
             var look = new Vector3(intent.Look.x, 0, intent.Look.z);
             if (look.sqrMagnitude > .01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(look), dt * 7);
@@ -235,7 +240,7 @@ namespace Wings
             var from = transform.position;
             var to = from + direction * step;
             bool impact = false;
-            if (!pierce && Physics.SphereCast(from, .12f, direction, out var wallHit, step, Arena.WallMask))
+            if (!pierce && Physics.SphereCast(from, .12f, direction, out var wallHit, step, Arena.OcclusionMask))
             {
                 to = wallHit.point;
                 impact = true;

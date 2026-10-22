@@ -149,7 +149,7 @@ namespace Wings.AI
                 return destination;
             var anchor = Anchor();
             float limit = g.Order == SquadOrder.Follow ? FollowLeash - 1 : DefenseLeash - 1;
-            return anchor + Vector3.ClampMagnitude(destination - anchor, limit);
+            return Arena.Ground(anchor + Vector3.ClampMagnitude(destination - anchor, limit));
         }
 
         /// <summary>
@@ -388,7 +388,7 @@ namespace Wings.AI
                         next.State = BrainState.Patrol;
                         next.Reason = "敵を知らないため巡回して捜索";
                         float angle = patrolStep * 72 + (Mathf.Abs(body.Id) % 5) * 72;
-                        var point = Quaternion.Euler(0, angle, 0) * Vector3.forward * 19;
+                        var point = Quaternion.Euler(0, angle, 0) * Vector3.forward * Arena.PatrolRadius;
                         next.Destination = point;
                         if (Vector3.Distance(body.Position, point) < 2)
                             patrolStep++;
@@ -548,7 +548,7 @@ namespace Wings.AI
                     && Vector3.Distance(Arena.Ground(body.Position), Vector3.zero) < (enemy.Boss ? 4
                     : enemy.kind == 2 ? 12
                     : 2.8f)
-                    && !Physics.Linecast(body.Center, Vector3.up, Arena.WallMask);
+                    && !Physics.Linecast(body.Center, Vector3.up, Arena.OcclusionMask);
             body.DebugState = Intent.State + " / " + Intent.Reason;
             return Intent;
         }

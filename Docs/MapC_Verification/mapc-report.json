@@ -1,0 +1,24 @@
+{
+    "passed": true,
+    "checks": [
+        "Map C uses expanded bounds instead of clamping to the old 30m area",
+        "Western plateau is eight meters above the tower",
+        "Eastern basin is four meters below the tower",
+        "Northwest terrace and eastern basin provide sixteen meters of relief",
+        "Ground projection matches the actual terrain triangles at non-grid positions",
+        "All four map C gates have complete NavMesh routes to the tower",
+        "NavMesh routes preserve elevation and bend around the labyrinth",
+        "The terrain itself blocks sight across the plateau edge",
+        "Terrain-occluded enemies do not enter the sensor contact list",
+        "A following ally actually climbs from the lower route to the western plateau",
+        "An enemy actually follows the winding route down from the plateau",
+        "Enemy gravity keeps its feet on descending terrain",
+        "Map C observation switches to an overhead camera and AI control",
+        "Observation can return to the normal character camera",
+        "Leaving observation immediately restores a nearby character camera",
+        "A complete map C mission reaches a natural result with elevated terrain and four waves",
+        "Stage C result=True, wave=4, kills=160, time=186.0, tower=1500",
+        "Map C mission cleanup releases its squad"
+    ],
+    "failure": ""
+}

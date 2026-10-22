@@ -137,7 +137,9 @@ namespace Wings
             // 操作中なら入力、未操作ならAIへ振り分ける。自動検証では操作中のキャラもAIへ任せられる。
             if (Controlled)
             {
-                if (!g.SmokeTesting)
+                if (g.ObservationMode)
+                    Think();
+                else if (!g.SmokeTesting)
                     Control();
                 else if (g.VerificationAutopilot)
                     Think();
@@ -511,7 +513,7 @@ namespace Wings
             Vector3 direction = moveDirection.sqrMagnitude > .1f ? moveDirection : new Vector3(Aim.x, 0, Aim.z).normalized;
             if (Definition.bird == Bird.Hawk)
             {
-                if (!Physics.Raycast(transform.position + Vector3.up, Aim, out var hit, 25, Arena.WallMask))
+                if (!Physics.Raycast(transform.position + Vector3.up, Aim, out var hit, 25, Arena.OcclusionMask))
                 {
                     if (Controlled)
                         WingsGame.Instance.Notify("ワイヤーを壁に向けて使用");
@@ -571,7 +573,7 @@ namespace Wings
                 for (float n = 9; n >= 1; n -= .5f)
                 {
                     target = Arena.Ground(transform.position + direction * n);
-                    if (!Physics.CheckCapsule(target + Vector3.up * .5f, target + Vector3.up * 1.4f, .5f, Arena.WallMask))
+                    if (!Physics.CheckCapsule(target + Vector3.up * .5f, target + Vector3.up * 1.4f, .5f, Arena.OcclusionMask))
                     {
                         Teleport(target);
                         break;
@@ -646,7 +648,7 @@ namespace Wings
         public void BeamAttack(float range, float damage, float width, bool throughWall, bool distanceBonus)
         {
             Vector3 origin = transform.position + Vector3.up * 1.2f;
-            if (!throughWall && Physics.Raycast(origin, Aim, out var wall, range, Arena.WallMask))
+            if (!throughWall && Physics.Raycast(origin, Aim, out var wall, range, Arena.OcclusionMask))
                 range = wall.distance;
             var targets = Enemy.All.FindAll(e => e && e.Health > 0);
             targets.Sort((a, b) => (a.transform.position - origin).sqrMagnitude.CompareTo((b.transform.position - origin).sqrMagnitude));

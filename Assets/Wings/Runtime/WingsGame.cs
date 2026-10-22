@@ -63,7 +63,8 @@ namespace Wings
         public string Notice { get; private set; } = "";
 
         public float NoticeTime;
-        public string StageName => Stage == 0 ? "A / 凍てつく前哨基地" : "B / 黄昏の侵攻跡地";
+        public string StageName => Stage == 0 ? "A / 凍てつく前哨基地"
+            : Stage == 1 ? "B / 黄昏の侵攻跡地" : "C / 段丘の迷宮";
         public int Score { get; private set; }
         public string Rank { get; private set; } = "E";
         public bool SmokeTesting { get; private set; }
@@ -166,6 +167,11 @@ namespace Wings
             }
 
             SetState(GameState.Title);
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "--wings-mapc-test") >= 0)
+            {
+                SmokeTesting = true;
+                StartCoroutine(RunMapCValidation());
+            }
         }
 
         /// <summary>
@@ -205,7 +211,7 @@ namespace Wings
         /// </summary>
         void UpdateCursor()
         {
-            bool locked = State == GameState.Playing && !CommandWheel && !SmokeTesting;
+            bool locked = State == GameState.Playing && !CommandWheel && !SmokeTesting && !ObservationMode;
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
         }
@@ -249,6 +255,8 @@ namespace Wings
 
             if (kb?.f1Key.wasPressedThisFrame == true)
                 ShowAIDebug = !ShowAIDebug;
+            if (Stage == 2 && kb?.f2Key.wasPressedThisFrame == true)
+                ToggleObservation();
             if (mouse != null)
             {
                 if (mouse.rightButton.wasPressedThisFrame)
@@ -264,7 +272,7 @@ namespace Wings
                 }
             }
 
-            if (!CommandWheel && mouse != null)
+            if (!CommandWheel && !ObservationMode && mouse != null)
             {
                 Vector2 delta = mouse.delta.ReadValue();
                 CameraYaw += delta.x * Sensitivity;
@@ -354,6 +362,11 @@ namespace Wings
         {
             if (!Viewport)
                 return;
+            if (ObservationMode && Active)
+            {
+                UpdateObservationCamera();
+                return;
+            }
             if ((State == GameState.Playing
                 || State == GameState.Paused
                 || State == GameState.Settings
@@ -365,7 +378,7 @@ namespace Wings
                 var rotation = Quaternion.Euler(cameraPitch, CameraYaw, 0);
                 var offset = rotation * new Vector3(.85f, .45f, -5.8f);
                 var desired = pivot + offset;
-                if (Physics.SphereCast(pivot, .22f, offset.normalized, out var hit, offset.magnitude, Arena.WallMask))
+                if (Physics.SphereCast(pivot, .22f, offset.normalized, out var hit, offset.magnitude, Arena.OcclusionMask))
                     desired = pivot + offset.normalized * Mathf.Max(.5f, hit.distance - .2f);
                 Viewport.transform.SetPositionAndRotation(Vector3.Lerp(Viewport.transform.position, desired, 1 - Mathf.Exp(-16 * Time.unscaledDeltaTime)), rotation);
             }
@@ -447,6 +460,10 @@ namespace Wings
         public void BeginMission(bool training)
         {
             ClearBattle();
+            ObservationMode = false;
+            Viewport.orthographic = false;
+            Viewport.farClipPlane = Stage == 2 ? 300 : 150;
+            RenderSettings.fogDensity = Stage == 2 ? .003f : .009f;
             Training = training;
             TotalKills = 0;
             Elapsed = 0;
@@ -499,6 +516,8 @@ namespace Wings
         /// </summary>
         public void ClearBattle()
         {
+            ObservationMode = false;
+            if (Viewport) Viewport.orthographic = false;
             foreach (var p in Party)
                 if (p)
                     Destroy(p.gameObject);

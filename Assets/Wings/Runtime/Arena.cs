@@ -5,14 +5,22 @@ namespace Wings
     /// <summary>
     /// 仮ステージの生成と、地面座標への補正・近距離の壁回避をまとめる。
     /// </summary>
-    public static class Arena
+    public static partial class Arena
     {
         /// <summary>
         /// 壁の物理レイヤー番号。視覚の遮蔽、射線、身体の壁回避で共通に使用する。
         /// </summary>
         public const int WallLayer = 8;
         public const int WallMask = 1 << WallLayer;
-        public static readonly Vector3[] Gates =
+        public const int TerrainLayer = 10;
+        public const int TerrainMask = 1 << TerrainLayer;
+        // 坂の床は視界と弾を遮るが、歩行方向の壁回避では障害物にしない。
+        public const int OcclusionMask = WallMask | TerrainMask;
+        static int activeStage;
+        public static float HalfExtent => activeStage == 2 ? 62 : 30;
+        public static float PatrolRadius => activeStage == 2 ? 44 : 19;
+        public static Vector3[] Gates => activeStage == 2 ? MapCGates : FlatGates;
+        static readonly Vector3[] FlatGates =
         {
             new Vector3(0, 0, 29),
             new Vector3(29, 0, 0),
@@ -25,6 +33,9 @@ namespace Wings
         /// </summary>
         public static Transform Build(int stage)
         {
+            activeStage = stage;
+            if (stage == 2)
+                return BuildMapC();
             var root = new GameObject("Arena").transform;
             Color floor = stage == 0 ? new Color(.13f, .22f, .28f) : new Color(.24f, .18f, .23f);
             Color accent = stage == 0 ? new Color(.15f, .75f, .87f) : new Color(1, .42f, .3f);
@@ -95,13 +106,14 @@ namespace Wings
         }
 
         /// <summary>
-        /// 位置をXZ床面へ投影し、マップの許容範囲に収める。Y=0へ落とすので空中の照準には使わない。
+        /// マップ内へ収め、歩行面の高さへ投影する。A/Bは従来のY=0、Cは地形メッシュと同じ高さを返す。
+        /// 空中の照準や飛行中の実位置を上書きする用途には使わない。
         /// </summary>
         public static Vector3 Ground(Vector3 p)
         {
-            p.x = Mathf.Clamp(p.x, -30, 30);
-            p.z = Mathf.Clamp(p.z, -30, 30);
-            p.y = 0;
+            p.x = Mathf.Clamp(p.x, -HalfExtent, HalfExtent);
+            p.z = Mathf.Clamp(p.z, -HalfExtent, HalfExtent);
+            p.y = activeStage == 2 ? MapCSurfaceHeight(p.x, p.z) : 0;
             return p;
         }
 

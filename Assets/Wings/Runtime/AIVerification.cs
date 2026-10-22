@@ -204,6 +204,11 @@ namespace Wings
                 if (o.carving)
                     carver = true;
             Check(carver, "Ice wall contributes a runtime carving obstacle");
+            // 次の目標選択テストへ遮蔽を持ち越さない。描画速度によって氷壁の自然消滅を待てるかが変わるため、
+            // ここで検証用の壁を明示的に片付け、可視候補を作る条件を一定にする。
+            foreach (var obstacle in FindObjectsByType<NavMeshObstacle>(FindObjectsSortMode.None))
+                if (obstacle.gameObject.name == "Ice wall") Destroy(obstacle.gameObject);
+            yield return null;
             if (subject)
                 Destroy(subject.gameObject);
             yield return null;

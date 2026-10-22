@@ -1,0 +1,2 @@
+# Preserve Excel workbooks as binary files
+*.xlsx binary

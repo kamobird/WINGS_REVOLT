@@ -22,6 +22,7 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 | 右クリック長押し＋左クリック | 味方への指示 |
 | Esc | ポーズ・戻る |
 | F1 | 味方AIの判断表示 |
+| F2（mapC） | 俯瞰観察・全員AI / 操作へ戻る |
 
 ## AIと差し替え
 
@@ -29,6 +30,8 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 
 モデルは仮素材です。`Assets/Wings/Resources/Characters`の設定から見た目のPrefabを差し替えられます。AIの調整値は`Assets/Wings/Resources/WingsAI.asset`にあります。
 
+- [mapCの地形・観察モード・高さ対応](Docs/MAP_C_GUIDE.md)
+- [設計Excel（Git管理対象）](Docs/Design/README.md)
 - [基本仕様・キャラクター・モデル差し替え](Docs/ALPHA_GUIDE.md)
 - [AIコードの読み方（処理の流れと技術の説明）](Docs/AI_CODE_GUIDE.md)
 - [認識・協調AIの仕様と検証結果](Docs/AI_REFINEMENT.md)
@@ -37,8 +40,8 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 
 ## Windows実行版を作る
 
-Unityのメニューから **WINGS > Build Refined AI** を実行します。`Builds/AIRefined/WINGS_REVOLT_AI.exe`が生成されます。Windows向けのビルドサポートが必要です。
+Unityのメニューから **WINGS > Build Map C** を実行します。A/B/Cを含む`Builds/MapC/WINGS_REVOLT_MapC.exe`が生成されます。Windows向けのビルドサポートが必要です。
 
-`--wings-ai-test --wings-report <出力先>`で認識・協調の自動検証、`--wings-smoke --wings-report <出力先>`で既存機能の回帰確認を実行できます。
+`--wings-mapc-test --wings-report <出力先>`でmapCの地形と実移動、`--wings-ai-test --wings-report <出力先>`で認識・協調の自動検証、`--wings-smoke --wings-report <出力先>`で既存機能の回帰確認を実行できます。
 
 Unityの生成キャッシュ、個人用設定、ビルド済みファイルは`.gitignore`で除外しています。難易度や操作感はα版として調整中です。
