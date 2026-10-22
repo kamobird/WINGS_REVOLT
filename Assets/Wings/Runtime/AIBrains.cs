@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace Wings.AI
 {
     /// <summary>
     /// 有限状態機械（FSM）の下位行動。Guard=警戒、Patrol=巡回、Regroup=合流、Pursue=接近、
     /// Reposition=位置調整、Attack=攻撃、Investigate=捜索、Reload=装填、Down=ダウン。
+    /// Kite=引き撃ち、React=被弾への反応、Support=攻撃枠を待ちながら側面へ展開。
     /// 大命令Follow/Defend/Assaultとは別の分類。Downは定義のみで、実際のダウン処理はPlayerAgentが担当する。
     /// </summary>
     public enum BrainState
@@ -17,7 +19,10 @@ namespace Wings.AI
         Attack,
         Investigate,
         Reload,
-        Down
+        Down,
+        Kite,
+        React,
+        Support
     }
 
     /// <summary>
@@ -43,6 +48,7 @@ namespace Wings.AI
         /// Fireは毎フレーム再検査する発砲許可。能力の4フラグはPlayerAgentが実行後に一度だけ消費する。
         /// </summary>
         public bool Fire, Skill, Bomb, Ultimate, Move;
+        public bool SelfDefense;
     }
 
     /// <summary>
@@ -93,6 +99,10 @@ namespace Wings.AI
         int currentTarget, patrolStep, lastInvestigated;
         SquadOrder lastOrder;
         BrainState lastState;
+        Contact damageEvidence;
+        float defendUntil;
+        static readonly float[] retreatAngles = { 0f, 35, -35, 70, -70 };
+        public SquadOrder Order => WingsGame.Instance.OrderFor(pilot);
 
         /// <summary>
         /// キャラと身体を結び、キャラ別の視認距離と共通の行動範囲を設定する。
@@ -122,6 +132,8 @@ namespace Wings.AI
             currentTarget = 0;
             nextDecision = 0;
             Intent = new BrainIntent();
+            damageEvidence = null;
+            defendUntil = 0;
         }
 
         /// <summary>
@@ -131,7 +143,7 @@ namespace Wings.AI
         public Vector3 Anchor()
         {
             var g = WingsGame.Instance;
-            return g.Order == SquadOrder.Follow
+            return Order == SquadOrder.Follow
                 && g.Active
                 && g.Active != pilot
                 && !g.Active.Downed ? Arena.Ground(g.Active.transform.position)
@@ -145,10 +157,10 @@ namespace Wings.AI
         {
             var g = WingsGame.Instance;
             destination = Arena.Ground(destination);
-            if (g.Order == SquadOrder.Assault)
+            if (Order == SquadOrder.Assault)
                 return destination;
             var anchor = Anchor();
-            float limit = g.Order == SquadOrder.Follow ? FollowLeash - 1 : DefenseLeash - 1;
+            float limit = Order == SquadOrder.Follow ? FollowLeash - 1 : DefenseLeash - 1;
             return Arena.Ground(anchor + Vector3.ClampMagnitude(destination - anchor, limit));
         }
 
@@ -159,7 +171,7 @@ namespace Wings.AI
         {
             var g = WingsGame.Instance;
             int index = Mathf.Max(0, g.Party.IndexOf(pilot));
-            if (g.Order == SquadOrder.Follow)
+            if (Order == SquadOrder.Follow)
             {
                 var rotation = g.Active ? g.Active.transform.rotation : Quaternion.identity;
                 return ClampToOrder(Anchor() + rotation * new Vector3((index % 3 - 1) * 2.5f, 0, -3.5f - (index == 3 ? 2 : 0)));
@@ -220,24 +232,25 @@ namespace Wings.AI
         {
             var g = WingsGame.Instance;
             Observe(now);
-            if (now >= nextDecision || lastOrder != g.Order)
+            if (now >= nextDecision || lastOrder != Order)
             {
                 nextDecision = now + .15f;
-                lastOrder = g.Order;
+                lastOrder = Order;
                 Decide(now);
             }
 
             // 行動選択は周期更新だが、移動と射撃の条件は毎フレーム確認する。
-            Intent.Destination = ClampToOrder(Intent.Destination);
+            if (!Intent.SelfDefense)
+                Intent.Destination = ClampToOrder(Intent.Destination);
             float distance = Vector3.Distance(Arena.Ground(body.Position), Intent.Destination);
             Intent.Direction = distance > .8f ? Navigation.Direction(body, Intent.Destination, now, .48f)
                 : CrowdGrid.Steer(body, Vector3.zero, .48f, now);
             // 【毎フレームの範囲制御】目的地を丸めるだけでは、局所回避で外へ逸れることがある。
             // 範囲の縁では外向きの方向成分を取り除き、接線方向や帰還方向の動きは残す。
-            if (g.Order != SquadOrder.Assault)
+            if (Order != SquadOrder.Assault && !Intent.SelfDefense)
             {
                 var away = Arena.Ground(body.Position) - Anchor();
-                float limit = g.Order == SquadOrder.Follow ? FollowLeash : DefenseLeash;
+                float limit = Order == SquadOrder.Follow ? FollowLeash : DefenseLeash;
                 if (away.magnitude >= limit - .6f && Vector3.Dot(Intent.Direction, away) > 0)
                     Intent.Direction = Vector3.ProjectOnPlane(Intent.Direction, away.normalized);
             }
@@ -279,9 +292,9 @@ namespace Wings.AI
             var anchor = Anchor();
             float homeDistance = Vector3.Distance(Arena.Ground(body.Position), anchor);
             // 追従/防衛の許容距離を超えたら敵より帰還を優先する。帰還中も直接見える敵の発砲確認は続ける。
-            bool regroup = g.Order == SquadOrder.Follow
+            bool regroup = Order == SquadOrder.Follow
                 && homeDistance > FollowLeash
-                || g.Order == SquadOrder.Defend
+                || Order == SquadOrder.Defend
                 && homeDistance > DefenseLeash;
             Contact target = ChooseTarget(now);
             if (regroup)
@@ -311,13 +324,13 @@ namespace Wings.AI
                     next.Reason = "武器の適正距離まで離脱";
                     next.Destination = attackPosition;
                 }
-                else if (g.Order == SquadOrder.Assault && distance > PreferredRange * 1.3f)
+                else if (Order == SquadOrder.Assault && distance > PreferredRange * 1.3f)
                 {
                     next.State = BrainState.Pursue;
                     next.Reason = "目視した敵へ接近";
                     next.Destination = attackPosition;
                 }
-                else if (g.Order == SquadOrder.Follow && homeDistance > 7)
+                else if (Order == SquadOrder.Follow && homeDistance > 7)
                 {
                     next.State = BrainState.Regroup;
                     next.Reason = "射撃しながら編隊へ戻る";
@@ -383,7 +396,7 @@ namespace Wings.AI
                     }
 
                     // 未発見の敵位置を巡回先に使わず、決まった円周上の点を順番に調べる。個体IDで開始方向を分散する。
-                    if (g.Order == SquadOrder.Assault)
+                    if (Order == SquadOrder.Assault)
                     {
                         next.State = BrainState.Patrol;
                         next.Reason = "敵を知らないため巡回して捜索";
@@ -395,8 +408,8 @@ namespace Wings.AI
                     }
                     else
                     {
-                        next.State = g.Order == SquadOrder.Follow ? BrainState.Regroup : BrainState.Guard;
-                        next.Reason = g.Order == SquadOrder.Follow ? "編隊間隔を保って追従" : "拠点の周囲を警戒";
+                        next.State = Order == SquadOrder.Follow ? BrainState.Regroup : BrainState.Guard;
+                        next.Reason = Order == SquadOrder.Follow ? "編隊間隔を保って追従" : "拠点の周囲を警戒";
                     }
                 }
             }
@@ -418,15 +431,16 @@ namespace Wings.AI
                 next.Look = (next.Destination - Arena.Ground(body.Position)).normalized;
             else
                 next.Look = Quaternion.Euler(0, now * 42 + (Mathf.Abs(body.Id) % 4) * 90, 0) * Vector3.forward;
-            if (g.Order == SquadOrder.Follow && homeDistance > 8 && pilot.Definition.bird == Bird.Swallow)
+            if (Order == SquadOrder.Follow && homeDistance > 8 && pilot.Definition.bird == Bird.Swallow)
                 next.Move = !pilot.Accelerating && pilot.Raiden > 25;
             else if (pilot.Definition.bird == Bird.Swallow && pilot.Accelerating && next.State != BrainState.Pursue)
                 next.Move = true;
+            ApplySelfDefense(next, now);
             Intent = next;
             if (lastState != next.State && now >= nextLog)
             {
                 Debug.Log("WINGS ALLY AI " + pilot.Definition.displayName
-                    + " order=" + g.Order
+                    + " order=" + Order
                     + " state=" + next.State
                     + " visible=" + Sensor.Visible.Count
                     + " target=" + (next.Target?.Id ?? 0)
@@ -492,6 +506,90 @@ namespace Wings.AI
                     break;
             }
         }
+
+        /// <summary>
+        /// 実際の被弾イベントだけが入口。背後の相手でも、振り返れば見える距離・上下角・遮蔽条件なら瞬間の位置を記録する。
+        /// 条件外なら攻撃者は特定せず、その場の回避だけを行う。
+        /// </summary>
+        public bool OnAttacked(AIBody attacker, float now)
+        {
+            defendUntil = now + 3;
+            nextDecision = 0;
+            damageEvidence = attacker
+                && Sensor.CanSee(attacker, true) ? Sensor.RememberEvent(attacker, attacker.Center, now, EvidenceSource.Damage)
+                : null;
+            return damageEvidence != null;
+        }
+
+        public void OnTowerAlert(AIBody attacker, Vector3 at, float now)
+        {
+            Sensor.RememberEvent(attacker, at, now, EvidenceSource.TowerAlert);
+            nextDecision = 0;
+        }
+
+        /// <summary>
+        /// 被弾後の3秒は命令の行動範囲より自己防衛を優先する。既知の攻撃地点から離れながら向き直り、
+        /// 直接目視に戻った相手だけへ射撃する。静かになれば元の個別命令へ戻る。
+        /// </summary>
+        void ApplySelfDefense(BrainIntent next, float now)
+        {
+            if (now >= defendUntil)
+                return;
+            Contact threat = null;
+            if (damageEvidence != null)
+            {
+                foreach (var sight in Sensor.Visible)
+                    if (sight.Id == damageEvidence.Id)
+                    {
+                        threat = sight;
+                        break;
+                    }
+            }
+
+            if (threat == null && next.Target != null && next.Target.Visible)
+                threat = next.Target;
+            Vector3 knownPosition = threat != null ? threat.Position
+                : damageEvidence != null ? damageEvidence.Position
+                : body.Position + body.transform.forward * 3;
+            Vector3 away = body.Position - knownPosition;
+            away.y = 0;
+            if (away.sqrMagnitude < .01f)
+                away = -body.transform.forward;
+            if (damageEvidence == null && threat == null)
+                away = body.transform.right;
+            next.SelfDefense = true;
+            next.State = threat != null ? BrainState.Kite : BrainState.React;
+            next.Reason = threat != null ? "自己防衛・引き撃ち（個別命令より一時優先）" : damageEvidence != null ? "被弾地点へ振り返り、再視認まで射撃しない" : "攻撃者不明・周辺へ回避";
+            next.Target = threat;
+            next.Look = damageEvidence != null || threat != null ? (knownPosition - body.Center).normalized : body.transform.forward;
+            next.Destination = RetreatPoint(away.normalized);
+            next.Skill = next.Bomb = next.Ultimate = false;
+            if (threat != null)
+                PlanAbilities(next);
+        }
+
+        Vector3 RetreatPoint(Vector3 away)
+        {
+            Vector3 best = Arena.Ground(body.Position);
+            if (!NavigationWorld.Sample(body.Position, out var from))
+                return best;
+            float score = float.NegativeInfinity;
+            foreach (float angle in retreatAngles)
+            {
+                Vector3 direction = Quaternion.Euler(0, angle, 0) * away;
+                Vector3 desired = Arena.Ground(body.Position + direction * 3.5f);
+                if (!NavigationWorld.Sample(desired, out var candidate, 1) || NavMesh.Raycast(from, candidate, out _, NavMesh.AllAreas))
+                    continue;
+                float value = Vector3.Dot(candidate - body.Position, away);
+                if (value > score)
+                {
+                    score = value;
+                    best = candidate;
+                }
+            }
+
+            return best;
+        }
     }
 
     /// <summary>
@@ -508,10 +606,6 @@ namespace Wings.AI
 
         float nextDecision;
         Contact remembered;
-
-        /// <summary>
-        /// 敵種別に視認距離を変え、敵用の視野角を設定する。kindの対応はEnemy.kindの説明を参照。
-        /// </summary>
         public EnemyBrain(Enemy owner, AIBody identity)
         {
             enemy = owner;
@@ -522,9 +616,18 @@ namespace Wings.AI
             identity.Sensor = Sensor;
         }
 
-        /// <summary>
-        /// 認識と約0.18秒周期の判断を更新し、毎フレームの移動方向・攻撃許可を作る。
-        /// </summary>
+        float AttackRange => enemy.kind == 2 ? 12 : enemy.Boss ? 3.8f : 2.2f;
+
+        /// <summary>攻撃できない身体状態では枠を即座に返す。凍結中に攻撃担当を占有し続けない。</summary>
+        public void Suspend(string reason)
+        {
+            EnemyCoordination.ReleaseAttack(body.Id);
+            Intent.State = BrainState.Reposition;
+            Intent.Fire = false;
+            Intent.Reason = reason;
+            nextDecision = 0;
+        }
+
         public BrainIntent Tick(float now)
         {
             Sensor.Tick(now);
@@ -535,27 +638,41 @@ namespace Wings.AI
             }
 
             Intent.Direction = Vector3.Distance(Arena.Ground(body.Position), Intent.Destination) > .6f ? Navigation.Direction(body, Intent.Destination, now, enemy.Boss ? 1.2f
-                : .62f)
+                : .62f, true)
                 : CrowdGrid.Steer(body, Vector3.zero, body.Radius, now);
             if (Intent.Target != null)
             {
-                float range = enemy.kind == 2 ? 12 : enemy.Boss ? 3.8f : 2.2f;
-                Intent.Fire = Sensor.CanFire(Intent.Target, range, body.Center, false);
-                // 目標ContactがないAttackは既知の任務目標であるタワーへの攻撃。距離と遮蔽はここでも検査する。
+                // 「撃てる」だけでは不十分。毎フレーム枠を更新し、Attack状態と発砲を同じ許可で制御する。
+                Intent.Fire = Intent.State == BrainState.Attack
+                    && Sensor.CanFire(Intent.Target, AttackRange, body.Center)
+                    && EnemyCoordination.TryAttack(body, Intent.Target, now);
+                if (Intent.Fire)
+                    Intent.State = BrainState.Attack;
+                if (!Intent.Fire)
+                {
+                    EnemyCoordination.ReleaseAttack(body.Id);
+                    if (Intent.State == BrainState.Attack)
+                        Intent.State = BrainState.Reposition;
+                    nextDecision = Mathf.Min(nextDecision, now + .03f);
+                }
             }
             else
+            {
+                EnemyCoordination.ReleaseAttack(body.Id);
                 Intent.Fire = Intent.State == BrainState.Attack
                     && Vector3.Distance(Arena.Ground(body.Position), Vector3.zero) < (enemy.Boss ? 4
                     : enemy.kind == 2 ? 12
                     : 2.8f)
                     && !Physics.Linecast(body.Center, Vector3.up, Arena.OcclusionMask);
+            }
+
             body.DebugState = Intent.State + " / " + Intent.Reason;
             return Intent;
         }
 
         /// <summary>
-        /// 見える相手を距離とデコイへの優先度で評価する。見失えば最後の目撃地点を短時間調べ、タワー任務へ戻る。
-        /// 攻撃相手やタワーの周囲の位置を予約し、一つの目的地へ集まり続けるのを緩和する。
+        /// 目視候補を評価する際、既に担当が集中している相手を避ける。全枠が埋まっていれば非攻撃の支援位置へ進む。
+        /// 移動経路の横方向の分散はPathMotorからEnemyCoordinationへ委ねる。
         /// </summary>
         void Decide(float now)
         {
@@ -564,52 +681,73 @@ namespace Wings.AI
                 State = BrainState.Pursue,
                 Reason = "既知の任務目標・タワーへ進行"
             };
-            Contact best = null;
-            float bestScore = float.NegativeInfinity;
-            // 【敵の選好】デコイには100点を加えて誘引効果を表す。近接型とボスは遠い通常相手へ寄り道しない。
-            // 候補そのものはVisible限定なので、未発見の囮に反応することはない。
+            Contact best = null, crowded = null;
+            float bestScore = float.NegativeInfinity, crowdedScore = float.NegativeInfinity;
             foreach (var c in Sensor.Visible)
             {
-                float d = Vector3.Distance(body.Position, c.Position);
-                float score = (c.IsDecoy ? 100 : 0) + 35 - d;
-                if (enemy.kind == 0 && d > 8 && !c.IsDecoy)
+                float distance = Vector3.Distance(body.Position, c.Position);
+                if (enemy.kind == 0 && distance > 8 && !c.IsDecoy)
                     continue;
-                if (enemy.Boss && d > 5 && !c.IsDecoy)
+                if (enemy.Boss && distance > 5 && !c.IsDecoy)
                     continue;
+                float score = (c.IsDecoy ? 100 : 0) + 35 - distance;
+                if (c.Subject && c.Subject.Pilot)
+                    score -= EnemyCoordination.AttackCount(c.Id, now) * 5;
+                if (!EnemyCoordination.HasCapacity(body, c, now))
+                {
+                    if (score > crowdedScore)
+                    {
+                        crowdedScore = score;
+                        crowded = c;
+                    }
+
+                    continue;
+                }
+
                 if (score > bestScore)
                 {
-                    best = c;
                     bestScore = score;
+                    best = c;
                 }
             }
 
             if (best != null)
             {
-                // 追跡用に最後の目撃情報をコピーする。見失った後はこの位置に固定し、生きたTransformを追わない。
                 remembered = best.Snapshot();
                 next.Target = best;
                 float radius = enemy.kind == 2 ? 9 : enemy.Boss ? 3 : 1.65f;
                 int slot = SquadBlackboard.ReserveSlot(body.Id, best.Id, body.Faction, body.Position, best.Position, radius, now);
                 next.Destination = SquadBlackboard.Slot(best.Position, radius, slot);
-                bool can = Sensor.CanFire(best, enemy.kind == 2 ? 12 : enemy.Boss ? 3.8f : 2.2f, body.Center, false);
-                if (can)
+                if (Sensor.CanFire(best, AttackRange, body.Center) && EnemyCoordination.TryAttack(body, best, now))
                 {
                     next.State = BrainState.Attack;
-                    next.Reason = "目視した相手へ射線と距離を確認";
+                    next.Reason = "目視・射線・距離と攻撃枠を確認";
                     if (enemy.kind != 2 || Vector3.Distance(body.Position, best.Position) > 6)
                         next.Destination = Arena.Ground(body.Position);
                 }
                 else
                 {
-                    next.State = BrainState.Pursue;
-                    next.Reason = "目視した相手の包囲位置へ移動";
+                    EnemyCoordination.ReleaseAttack(body.Id);
+                    next.Reason = "空きのある相手の包囲位置へ接近";
                 }
 
                 next.Look = (best.Position - body.Center).normalized;
-                // 2秒以内の最後の目撃地点だけを確認する。到着した、または時間が過ぎたらタワー任務へ復帰する。
+            }
+            else if (crowded != null)
+            {
+                EnemyCoordination.ReleaseAttack(body.Id);
+                remembered = crowded.Snapshot();
+                next.State = BrainState.Support;
+                next.Target = crowded;
+                next.Reason = "攻撃中の仲間を避けて側面へ展開（攻撃枠待ち）";
+                float radius = 6 + Mathf.Abs(body.Id) % 3 * 2;
+                int slot = SquadBlackboard.ReserveSlot(body.Id, crowded.Id, body.Faction, body.Position, crowded.Position, radius, now);
+                next.Destination = SquadBlackboard.Slot(crowded.Position, radius, slot);
+                next.Look = (crowded.Position - body.Center).normalized;
             }
             else if (remembered != null && now - remembered.SeenAt < 2 && Vector3.Distance(body.Position, remembered.Position) > 2)
             {
+                EnemyCoordination.ReleaseAttack(body.Id);
                 next.State = BrainState.Investigate;
                 next.Reason = "失った相手の最終目撃地点だけを確認";
                 next.Destination = Arena.Ground(remembered.Position);
@@ -617,9 +755,9 @@ namespace Wings.AI
             }
             else
             {
+                EnemyCoordination.ReleaseAttack(body.Id);
                 remembered = null;
                 float radius = enemy.kind == 2 ? 9 : enemy.Boss ? 3.2f : 2.1f;
-                // タワーは目標ID=0とし、12方向の到達点を予約する。接近経路はPathMotorが計算する。
                 int slot = SquadBlackboard.ReserveSlot(body.Id, 0, body.Faction, body.Position, Vector3.zero, radius, now, 12);
                 next.Destination = SquadBlackboard.Slot(Vector3.zero, radius, slot, 12);
                 if (Vector3.Distance(body.Position, next.Destination) < 1.3f)

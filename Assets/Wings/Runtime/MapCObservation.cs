@@ -23,6 +23,7 @@ namespace Wings
             }
             else if (Active)
             {
+                RenderedVisionFans = 0;
                 // 遠い俯瞰位置から数フレームかけて落下する表示を避け、操作カメラへ即座に戻す。
                 Vector3 pivot = Active.transform.position + Vector3.up * 1.8f;
                 Quaternion rotation = Quaternion.Euler(cameraPitch, CameraYaw, 0);
@@ -32,6 +33,7 @@ namespace Wings
                     distance = Mathf.Max(.5f, hit.distance - .2f);
                 Viewport.transform.SetPositionAndRotation(pivot + offset.normalized * distance, rotation);
             }
+
             UpdateCursor();
             Notify(ObservationMode ? "俯瞰観察 / 全員AI操作。右クリックで部隊指示、F2で操作へ戻る" : "キャラクター操作へ復帰", 4);
         }
@@ -50,11 +52,15 @@ namespace Wings
             if (Stage != 2 || !Active)
                 return;
             Text(new Rect(45, 130, 1060, 28),
-                ObservationMode ? "F2 操作へ戻る  /  全員AI  /  経路線 = F1で観察中の味方" : "F2 俯瞰観察・全員AI  /  F1 判断理由",
-                17, Cyan);
+                ObservationMode ? "F2 操作へ戻る  /  全員AI  /  経路線 = F1で観察中の味方"
+                : "F2 俯瞰観察・全員AI  /  F1 判断理由",
+                17,
+                Cyan);
             if (!ObservationMode)
                 return;
             Text(new Rect(45, 165, 1000, 26), "西高台 +8m  /  北段丘 +4m  /  東低地 -4m  /  北西 +12m", 16, Muted);
+            DrawSquadVision();
+            Text(new Rect(45, 195, 1000, 26), "キャラ色の扇形＝視野の目安（遮蔽を反映） / 線＝経路", 16, Muted);
             var inspected = Party[(activeIndex + 1) % Party.Count];
             var corners = inspected.Brain.Navigation.Corners;
             for (int i = 1; i < corners.Count; i++)
@@ -64,12 +70,17 @@ namespace Wings
                 var at = Viewport.WorldToViewportPoint(pilot.transform.position + Vector3.up * 2);
                 if (at.z > 0)
                     Text(new Rect(at.x * 1600 - 70, (1 - at.y) * 900 - 23, 140, 26),
-                        (Party.IndexOf(pilot) + 1) + " " + pilot.Definition.displayName, 15, pilot.Definition.color,
-                        FontStyle.Bold, TextAnchor.MiddleCenter);
+                        (Party.IndexOf(pilot) + 1)
+                        + " " + pilot.Definition.displayName
+                        + " / " + new[] { "追従", "防衛", "攻撃" }[(int)OrderFor(pilot)],
+                        15,
+                        pilot.Definition.color,
+                        FontStyle.Bold,
+                        TextAnchor.MiddleCenter);
             }
         }
 
-        void ObservationLine(Vector3 a, Vector3 b, Color color)
+        void ObservationLine(Vector3 a, Vector3 b, Color color, float width = 3)
         {
             Vector3 from = Viewport.WorldToViewportPoint(a), to = Viewport.WorldToViewportPoint(b);
             if (from.z <= 0 || to.z <= 0)
@@ -79,7 +90,7 @@ namespace Wings
             Vector2 delta = end - start;
             Matrix4x4 previous = GUI.matrix;
             GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, start);
-            Box(new Rect(start.x, start.y, delta.magnitude, 3), color);
+            Box(new Rect(start.x, start.y, delta.magnitude, width), color);
             GUI.matrix = previous;
         }
     }

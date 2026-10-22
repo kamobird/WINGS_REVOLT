@@ -20,7 +20,7 @@ namespace Wings
             var brain = inspected.Brain;
             var intent = brain.Intent;
             Text(new Rect(1128, 237, 426, 34), "AI DEBUG / F1  " + inspected.Definition.displayName, 20, Cyan, FontStyle.Bold);
-            string info = "命令: " + Order
+            string info = "命令: " + brain.Order
                 + "\n状態: " + intent.State
                 + "\n理由: " + intent.Reason
                 + "\n直接目視: " + brain.Sensor.Visible.Count

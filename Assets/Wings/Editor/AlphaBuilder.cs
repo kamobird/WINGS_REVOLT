@@ -90,16 +90,21 @@ namespace Wings.Editor
         {
             AssetDatabase.SaveAssets();
             Directory.CreateDirectory("Builds/MapC");
-            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
-            {
-                scenes = new[] { ScenePath },
-                locationPathName = "Builds/MapC/WINGS_REVOLT_MapC.exe",
-                target = BuildTarget.StandaloneWindows64,
-                options = BuildOptions.Development
-            });
+            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Builds/MapC/WINGS_REVOLT_MapC.exe", target = BuildTarget.StandaloneWindows64, options = BuildOptions.Development });
             if (result.summary.result != BuildResult.Succeeded)
                 throw new Exception("WINGS MAP C build failed: " + result.summary.result);
             Debug.Log("WINGS MAP C BUILD SUCCEEDED: " + result.summary.outputPath);
+        }
+
+        [MenuItem("WINGS/Build Tactics")]
+        public static void BuildTactics()
+        {
+            AssetDatabase.SaveAssets();
+            Directory.CreateDirectory("Builds/Tactics");
+            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Builds/Tactics/WINGS_REVOLT_Tactics.exe", target = BuildTarget.StandaloneWindows64, options = BuildOptions.Development });
+            if (result.summary.result != BuildResult.Succeeded)
+                throw new Exception("WINGS TACTICS build failed: " + result.summary.result);
+            Debug.Log("WINGS TACTICS BUILD SUCCEEDED: " + result.summary.outputPath);
         }
     }
 }

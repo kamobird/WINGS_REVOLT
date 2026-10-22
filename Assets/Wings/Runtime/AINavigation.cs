@@ -99,7 +99,7 @@ namespace Wings.AI
         /// 目的地へ向かう今回の移動方向を計算する。経路計算は周期と目的地の変化に応じて行う。
         /// 経路を取得できない場合も直近の壁回避を使い、停滞時は再計算と横方向への試行を行う。
         /// </summary>
-        public Vector3 Direction(AIBody body, Vector3 goal, float now, float radius)
+        public Vector3 Direction(AIBody body, Vector3 goal, float now, float radius, bool cooperative = false)
         {
             Goal = Arena.Ground(goal);
             Vector3 position = body.Position;
@@ -126,6 +126,8 @@ namespace Wings.AI
             while (corner < corners.Length - 1 && (Arena.Ground(corners[corner]) - Arena.Ground(position)).sqrMagnitude < .8f * .8f)
                 corner++;
             Vector3 waypoint = corner < corners.Length ? corners[corner] : Goal;
+            if (cooperative)
+                waypoint = EnemyCoordination.TransitWaypoint(body, waypoint, Goal, now);
             Vector3 steering = Arena.Steer(position, waypoint, radius);
             steering = CrowdGrid.Steer(body, steering, radius, now);
             // 【停滞対策】一定距離進めたら記録を更新する。進めない状態が続けば再計算と左右への試行を行う。
@@ -152,7 +154,7 @@ namespace Wings.AI
     public static class CrowdGrid
     {
         /// <summary>
-        /// XZ平面を2.5m四方に区切る。近傍検索は自分のセルと周囲8セルに限定する。
+        /// XZ平面を2.5m四方に区切る。身体の分離は周囲8セル、進行位置の協調は指定距離のセルを検索する。
         /// </summary>
         const float CellSize = 2.5f;
         static readonly Dictionary<Vector2Int, List<AIBody>> cells = new Dictionary<Vector2Int, List<AIBody>>();
@@ -230,6 +232,24 @@ namespace Wings.AI
             if (near > 0 && desired.sqrMagnitude > .1f && separation.sqrMagnitude > .05f)
                 result += Vector3.Cross(Vector3.up, desired) * ((body.Id % 2 == 0 ? 1 : -1) * .12f);
             return Vector3.ClampMagnitude(result, 1);
+        }
+
+        /// <summary>同じ空間分割を協調移動にも使う。近傍の身体情報を認識Contactへは変換しない。</summary>
+        public static IEnumerable<AIBody> Neighbors(AIBody body, float radius)
+        {
+            Rebuild();
+            Vector2Int key = Cell(body.Position);
+            int reach = Mathf.CeilToInt(radius / CellSize);
+            for (int x = -reach; x <= reach; x++)
+                for (int z = -reach; z <= reach; z++)
+                    if (cells.TryGetValue(key + new Vector2Int(x, z), out var list))
+                        foreach (var other in list)
+                            if (other
+                                && other != body
+                                && other.Alive
+                                && Vector3.Distance(body.Position, other.Position) <= radius
+                                && !Physics.Linecast(body.Center, other.Center, Arena.OcclusionMask))
+                                yield return other;
         }
     }
 }

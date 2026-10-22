@@ -190,12 +190,12 @@ namespace Wings
                     break;
             }
 
-            if (State == GameState.Playing && CommandWheel)
-                OrdersUI();
-            if (State == GameState.Playing && ShowAIDebug)
-                AIDebugUI();
             if (State == GameState.Playing)
                 MapCObservationUI();
+            if (State == GameState.Playing && ShowAIDebug)
+                AIDebugUI();
+            if (State == GameState.Playing && CommandWheel)
+                OrdersUI();
             if (State == GameState.Playing && NoticeTime > 0)
             {
                 Box(new Rect(410, 157, 780, 54), Panel);
@@ -241,7 +241,12 @@ namespace Wings
         {
             Box(new Rect(0, 0, 1600, 900), Ink);
             Header("MISSION SELECT / 01", "防衛区域を選択", "侵略軍の残党が接近中。4羽の部隊を編成してタワーを守り抜こう。");
-            string[] names = { "A / 凍てつく前哨基地", "B / 黄昏の侵攻跡地", "C / 段丘の迷宮" };
+            string[] names =
+            {
+                "A / 凍てつく前哨基地",
+                "B / 黄昏の侵攻跡地",
+                "C / 段丘の迷宮"
+            };
             string[] notes =
             {
                 "3ウェーブ / 平坦な前哨基地\n4方向の侵入と開けた射線。\n部隊指示と能力の基本を確認。",
@@ -265,6 +270,7 @@ namespace Wings
                     Box(new Rect(x + 195, 380, 140, 9), c);
                     Box(new Rect(x + 330, 320, 7, 60), c);
                 }
+
                 for (int n = 0; n < 4; n++)
                 {
                     float a = n * Mathf.PI * .5f;
@@ -432,7 +438,7 @@ namespace Wings
                     a.Downed ? "復帰まで " + Mathf.CeilToInt(a.RespawnTimer)
                     + " 秒"
                     : a == p ? "CONTROL / " + Mathf.CeilToInt(a.Health)
-                    : "AI / " + new[] { "追従", "防衛", "攻撃" }[(int)Order],
+                    : "AI / " + new[] { "追従", "防衛", "攻撃" }[(int)OrderFor(a)],
                     14,
                     a.Downed ? Red
                     : Muted);
@@ -584,13 +590,20 @@ namespace Wings
         }
 
         /// <summary>
-        /// 3つの大命令を選択する画面。選択結果をOrderへ設定し、次のAI判断で反映する。
+        /// 対象を選んでから命令を出す。全員への命令は個別指示を解除し、個別命令は他の味方へ影響しない。
         /// </summary>
         void OrdersUI()
         {
             Box(new Rect(0, 0, 1600, 900), new Color(.02f, .04f, .07f, .55f));
-            Text(new Rect(460, 275, 680, 50), "SQUAD COMMAND", 32, Cyan, FontStyle.Bold, TextAnchor.MiddleCenter);
-            Text(new Rect(460, 333, 680, 35), "RMBを押したままクリックして指示", 19, White, align: TextAnchor.MiddleCenter);
+            Text(new Rect(460, 185, 680, 50), "SQUAD COMMAND", 32, Cyan, FontStyle.Bold, TextAnchor.MiddleCenter);
+            Text(new Rect(360, 247, 880, 35), "RMBを押したまま、対象 → 作戦の順にクリック", 19, White, align: TextAnchor.MiddleCenter);
+            for (int target = -1; target < Party.Count; target++)
+            {
+                string label = target < 0 ? "全員" : (target + 1) + "  " + Party[target].Definition.displayName;
+                if (Button(new Rect(135 + (target + 1) * 270, 310, 250, 60), label, CommandRecipient == target))
+                    CommandRecipient = target;
+            }
+
             string[] labels =
             {
                 "FOLLOW / 追従",
@@ -606,18 +619,19 @@ namespace Wings
             for (int i = 0; i < 3; i++)
             {
                 float x = 355 + i * 305;
-                if (Button(new Rect(x, 421, 280, 85), labels[i], Order == (SquadOrder)i))
+                if (Button(new Rect(x, 421, 280, 85), labels[i], CommandMatches((SquadOrder)i)))
                 {
-                    Order = (SquadOrder)i;
+                    IssueOrder(CommandRecipient, (SquadOrder)i);
                     CommandWheel = false;
                     UpdateCursor();
-                    Notify("部隊指示：" + labels[i]);
+                    Notify((CommandRecipient < 0 ? "全員" : Party[CommandRecipient].Definition.displayName) + "：" + labels[i]);
                 }
 
                 Text(new Rect(x, 522, 280, 55), notes[i], 18, Muted, align: TextAnchor.MiddleCenter);
             }
 
             Text(new Rect(460, 621, 680, 30), "指示中も戦闘は進みます", 17, Muted, align: TextAnchor.MiddleCenter);
+            Text(new Rect(300, 671, 1000, 30), "操作中の味方は、AI操作に切り替わると指示に従います", 17, Muted, align: TextAnchor.MiddleCenter);
         }
 
         /// <summary>

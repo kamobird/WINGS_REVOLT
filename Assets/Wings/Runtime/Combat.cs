@@ -102,6 +102,7 @@ namespace Wings
                 : Color.white);
             if (Health <= 0)
             {
+                EnemyCoordination.Release(Identity.Id);
                 if (source)
                     source.Kills++;
                 WingsGame.Instance?.EnemyKilled(this);
@@ -133,6 +134,7 @@ namespace Wings
             slowed -= dt;
             if (frozen > 0)
             {
+                Brain.Suspend("凍結中・攻撃枠を返却");
                 body.sharedMaterial = WingsVisual.Material(new Color(.4f, .85f, 1));
                 return;
             }
@@ -142,6 +144,7 @@ namespace Wings
                 : new Color(.72f, .22f, .28f));
             if (stagger > 0)
             {
+                Brain.Suspend("ノックバック中・攻撃枠を返却");
                 stagger -= dt;
                 motor.Move(knock * dt + Vector3.down * dt);
                 return;
@@ -154,8 +157,7 @@ namespace Wings
             if (motor.isGrounded && verticalVelocity < 0)
                 verticalVelocity = -2;
             verticalVelocity -= 22 * dt;
-            motor.Move((dir * (kind == 1 ? 4.8f : Boss ? 1.8f : 2.6f) * (slowed > 0 ? .4f : 1)
-                + Vector3.up * verticalVelocity) * dt);
+            motor.Move((dir * (kind == 1 ? 4.8f : Boss ? 1.8f : 2.6f) * (slowed > 0 ? .4f : 1) + Vector3.up * verticalVelocity) * dt);
             var look = new Vector3(intent.Look.x, 0, intent.Look.z);
             if (look.sqrMagnitude > .01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(look), dt * 7);
@@ -172,15 +174,16 @@ namespace Wings
                         20,
                         null,
                         new Color(1, .3f, .2f),
-                        hostile: true);
+                        hostile: true,
+                        attacker: Identity);
                 }
                 else if (subject && subject.Lure)
                     subject.Lure.Hit(Boss ? 45 : 15);
                 else if (subject && subject.Pilot)
-                    subject.Pilot.Hit(Boss ? 30 : 12);
+                    subject.Pilot.Hit(Boss ? 30 : 12, Identity);
                 // 目標の実体がない攻撃許可はタワー向け。攻撃許可自体はEnemyBrain.Tickで確認済み。
                 else
-                    game.TowerHit(Boss ? 42 : 9);
+                    game.TowerHit(Boss ? 42 : 9, Identity);
                 WingsVisual.Ring(transform.position, kind == 2 ? 11 : Boss ? 3.7f : 2, new Color(1, .2f, .25f), .22f);
             }
         }
@@ -196,13 +199,14 @@ namespace Wings
         Vector3 direction, origin;
         float speed, damage, range, travel, blast, slow, charge;
         PlayerAgent owner;
+        AIBody attacker;
         bool hostile, pierce, execute, cluster;
         HashSet<Enemy> hit = new HashSet<Enemy>();
 
         /// <summary>
         /// 弾・軌跡を作り、射程、威力、貫通、爆発など今回の発射パラメーターを保持する。
         /// </summary>
-        public static Projectile Fire(Vector3 at, Vector3 direction, float speed, float damage, float range, PlayerAgent owner, Color color, float blast = 0, float slow = 0, bool pierce = false, bool execute = false, float charge = 0, bool hostile = false, bool cluster = false)
+        public static Projectile Fire(Vector3 at, Vector3 direction, float speed, float damage, float range, PlayerAgent owner, Color color, float blast = 0, float slow = 0, bool pierce = false, bool execute = false, float charge = 0, bool hostile = false, bool cluster = false, AIBody attacker = null)
         {
             var go = WingsVisual.Shape("Projectile", PrimitiveType.Sphere, at, Vector3.one * (hostile ? .28f : .2f), color);
             var p = go.AddComponent<Projectile>();
@@ -212,6 +216,7 @@ namespace Wings
             p.damage = damage;
             p.range = range;
             p.owner = owner;
+            p.attacker = attacker;
             p.blast = blast;
             p.slow = slow;
             p.pierce = pierce;
@@ -252,7 +257,7 @@ namespace Wings
                 foreach (var p in g.Party)
                     if (p && !p.Downed && DistanceToSegment(p.transform.position + Vector3.up, from, to) < .65f)
                     {
-                        p.Hit(damage);
+                        p.Hit(damage, attacker);
                         impact = true;
                         break;
                     }

@@ -46,8 +46,6 @@ namespace Wings
         public readonly List<int> Selected = new List<int>();
         public readonly List<PlayerAgent> Party = new List<PlayerAgent>();
         public GameState State { get; private set; } = GameState.Title;
-
-        public SquadOrder Order = SquadOrder.Defend;
         public PlayerAgent Active => Party.Count > activeIndex ? Party[activeIndex] : null;
         public Camera Viewport { get; private set; }
         public float CameraYaw { get; private set; }
@@ -63,8 +61,7 @@ namespace Wings
         public string Notice { get; private set; } = "";
 
         public float NoticeTime;
-        public string StageName => Stage == 0 ? "A / 凍てつく前哨基地"
-            : Stage == 1 ? "B / 黄昏の侵攻跡地" : "C / 段丘の迷宮";
+        public string StageName => Stage == 0 ? "A / 凍てつく前哨基地" : Stage == 1 ? "B / 黄昏の侵攻跡地" : "C / 段丘の迷宮";
         public int Score { get; private set; }
         public string Rank { get; private set; } = "E";
         public bool SmokeTesting { get; private set; }
@@ -172,6 +169,12 @@ namespace Wings
                 SmokeTesting = true;
                 StartCoroutine(RunMapCValidation());
             }
+
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "--wings-tactics-test") >= 0)
+            {
+                SmokeTesting = true;
+                StartCoroutine(RunTacticsValidation());
+            }
         }
 
         /// <summary>
@@ -261,6 +264,7 @@ namespace Wings
             {
                 if (mouse.rightButton.wasPressedThisFrame)
                 {
+                    CommandRecipient = -1;
                     CommandWheel = true;
                     UpdateCursor();
                 }
@@ -367,6 +371,7 @@ namespace Wings
                 UpdateObservationCamera();
                 return;
             }
+
             if ((State == GameState.Playing
                 || State == GameState.Paused
                 || State == GameState.Settings
@@ -517,7 +522,8 @@ namespace Wings
         public void ClearBattle()
         {
             ObservationMode = false;
-            if (Viewport) Viewport.orthographic = false;
+            if (Viewport)
+                Viewport.orthographic = false;
             foreach (var p in Party)
                 if (p)
                     Destroy(p.gameObject);
@@ -535,6 +541,9 @@ namespace Wings
             // 実体だけでなく共有情報も破棄する。前の任務の報告や位置予約を次の任務の知識として使わない。
             SquadBlackboard.Clear();
             CrowdGrid.Clear();
+            EnemyCoordination.Clear();
+            individualOrders.Clear();
+            ClearVisionFans();
             foreach (var fx in FindObjectsByType<FadeEffect>(FindObjectsSortMode.None))
                 Destroy(fx.gameObject);
             foreach (var block in FindObjectsByType<BoxCollider>(FindObjectsSortMode.None))
@@ -546,11 +555,16 @@ namespace Wings
         /// <summary>
         /// 通常戦闘中のタワー被弾を適用し、耐久値0で敗北にする。訓練では耐久値を減らさない。
         /// </summary>
-        public void TowerHit(float damage)
+        public void TowerHit(float damage, AIBody attacker = null)
         {
             if (State != GameState.Playing || Training)
                 return;
             TowerHealth = Mathf.Max(0, TowerHealth - damage);
+            // タワーの被害通知は全味方へ届く任務情報。ただし共有するのは「今この瞬間」の座標だけ。
+            if (attacker && attacker.Alive)
+                foreach (var pilot in Party)
+                    if (pilot && !pilot.Downed)
+                        pilot.Brain.OnTowerAlert(attacker, attacker.Center, Time.time);
             if (TowerHealth <= 0)
                 Finish(false);
         }

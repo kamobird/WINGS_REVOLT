@@ -672,12 +672,14 @@ namespace Wings
         /// <summary>
         /// 無敵時間を考慮して被弾・ダウンを処理する。ダウン時は能力とAIの一時情報を解除して復帰待ちへ移る。
         /// </summary>
-        public void Hit(float damage)
+        public void Hit(float damage, AIBody attacker = null)
         {
             if (Downed || invincible > 0)
                 return;
             Health = Mathf.Max(0, Health - damage);
             invincible = .35f;
+            if (Health > 0)
+                Brain.OnAttacked(attacker, Time.time);
             if (Health <= 0)
             {
                 StopAllCoroutines();

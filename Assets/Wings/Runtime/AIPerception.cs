@@ -11,7 +11,9 @@ namespace Wings.AI
     {
         Sight,
         Memory,
-        AllyReport
+        AllyReport,
+        Damage,
+        TowerAlert
     }
 
     // 戦闘候補の列挙と、AIが相手を知っていることは別。判断側にはセンサーの観測結果を渡す。
@@ -62,6 +64,7 @@ namespace Wings.AI
         {
             Registry.Remove(this);
             SquadBlackboard.Release(Id);
+            EnemyCoordination.Release(Id);
         }
 
         /// <summary>
@@ -103,6 +106,7 @@ namespace Wings.AI
             Registry.Clear();
             SquadBlackboard.Clear();
             CrowdGrid.Clear();
+            EnemyCoordination.Clear();
         }
     }
 
@@ -220,7 +224,8 @@ namespace Wings.AI
             foreach (var c in memories.Values)
             {
                 c.Visible = false;
-                c.Source = EvidenceSource.Memory;
+                if (c.Source == EvidenceSource.Sight)
+                    c.Source = EvidenceSource.Memory;
             }
 
             // 【候補と知識の境界】存在する身体を調べるのはこの段階だけ。
@@ -270,7 +275,7 @@ namespace Wings.AI
         /// 現在の身体が視界内に入るかを調べる。距離と視野角を先に確認し、最後に物理的な遮蔽を検査する。
         /// タカの壁越し視認も距離・方向の条件は守り、遮蔽判定だけを省略する。
         /// </summary>
-        public bool CanSee(AIBody subject)
+        public bool CanSee(AIBody subject, bool ignoreHorizontalFov = false)
         {
             if (!subject || !subject.Alive)
                 return false;
@@ -281,7 +286,7 @@ namespace Wings.AI
                 return false;
             Vector3 flat = new Vector3(delta.x, 0, delta.z), forward = owner.transform.forward;
             forward.y = 0;
-            if (flat.sqrMagnitude > .001f && Vector3.Angle(forward, flat) > Settings.horizontalFov * .5f)
+            if (!ignoreHorizontalFov && flat.sqrMagnitude > .001f && Vector3.Angle(forward, flat) > Settings.horizontalFov * .5f)
                 return false;
             float elevation = Mathf.Atan2(Mathf.Abs(delta.y), Mathf.Max(.01f, flat.magnitude)) * Mathf.Rad2Deg;
             if (elevation > Settings.verticalFov * .5f)
@@ -333,6 +338,36 @@ namespace Wings.AI
                     best = c;
             return best?.Snapshot();
         }
+
+        /// <summary>
+        /// 被弾やタワー通知で許可された瞬間の位置を記録する。Visibleには入れず、射撃には通常の目視を必要とする。
+        /// 値をコピーし、以後の相手のTransform移動で手がかりを更新しない。
+        /// </summary>
+        public Contact RememberEvent(AIBody subject, Vector3 position, float now, EvidenceSource source)
+        {
+            if (!subject || !subject.Alive || subject.Faction == owner.Faction)
+                return null;
+            if (source != EvidenceSource.Damage && source != EvidenceSource.TowerAlert)
+                return null;
+            var contact = new Contact
+            {
+                Id = subject.Id,
+                Subject = subject,
+                Position = position,
+                SeenAt = now,
+                Confidence = 1,
+                Visible = false,
+                IsDecoy = subject.IsDecoy,
+                Source = source
+            };
+            if (memories.TryGetValue(subject.Id, out var previous))
+                visible.Remove(previous);
+            memories[subject.Id] = contact;
+            nextScan = 0;
+            return contact.Snapshot();
+        }
+
+        public Contact KnownContact(int id) => memories.TryGetValue(id, out var contact) ? contact.Snapshot() : null;
     }
 
     /// <summary>
