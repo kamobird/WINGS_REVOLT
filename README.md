@@ -24,12 +24,15 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 | F1 | 味方AIの判断表示 |
 | F2（mapC） | 俯瞰観察・全員AI・各味方の視野表示 / 操作へ戻る |
 
+戦闘中は右上のミニマップで地形・味方・認識済みの敵を確認できます。赤い点は目視中、橙の輪は最終認識位置です。タカの射撃とカラスのフルチャージ射撃は敵を貫通します。
+
 ## AIと差し替え
 
 視野角・距離・遮蔽による認識、期限付きの記憶と味方報告、追従・防衛・攻撃指示、NavMeshによる迂回、包囲位置の分散を実装しています。記憶や報告だけでは発砲せず、直接視認と銃口からの射線を確認します。
 
 モデルは仮素材です。`Assets/Wings/Resources/Characters`の設定から見た目のPrefabを差し替えられます。AIの調整値は`Assets/Wings/Resources/WingsAI.asset`にあります。
 
+- [ミニマップ・敵を貫通する射撃・調整箇所](Docs/MINIMAP_AND_PIERCING.md)
 - [敵の協調・引き撃ち・被弾認識・個別指示](Docs/TACTICAL_AI_GUIDE.md)
 - [mapCの地形・観察モード・高さ対応](Docs/MAP_C_GUIDE.md)
 - [設計Excel（Git管理対象）](Docs/Design/README.md)
@@ -43,6 +46,6 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 
 Unityのメニューから **WINGS > Build Tactics** を実行します。A/B/Cを含む`Builds/Tactics/WINGS_REVOLT_Tactics.exe`が生成されます。Windows向けのビルドサポートが必要です。
 
-`--wings-tactics-test --wings-report <出力先>`で今回の協調・自己防衛・個別指示を確認できます。`--wings-mapc-test`でmapCの地形と実移動、`--wings-ai-test`で認識・協調、`--wings-smoke`で既存機能の回帰確認も実行できます。
+`--wings-minimap-test --wings-report <出力先>`でミニマップと貫通射撃を、`--wings-tactics-test`で協調・自己防衛・個別指示を確認できます。`--wings-mapc-test`でmapCの地形と実移動、`--wings-ai-test`で認識・協調、`--wings-smoke`で既存機能の回帰確認も実行できます。
 
 Unityの生成キャッシュ、個人用設定、ビルド済みファイルは`.gitignore`で除外しています。難易度や操作感はα版として調整中です。

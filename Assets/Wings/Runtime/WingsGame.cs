@@ -175,6 +175,11 @@ namespace Wings
                 SmokeTesting = true;
                 StartCoroutine(RunTacticsValidation());
             }
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "--wings-minimap-test") >= 0)
+            {
+                SmokeTesting = true;
+                StartCoroutine(RunMinimapValidation());
+            }
         }
 
         /// <summary>
@@ -182,6 +187,7 @@ namespace Wings
         /// </summary>
         void OnDestroy()
         {
+            ClearMinimap();
             if (Instance == this)
                 Instance = null;
             Time.timeScale = 1;
@@ -544,6 +550,7 @@ namespace Wings
             EnemyCoordination.Clear();
             individualOrders.Clear();
             ClearVisionFans();
+            ClearMinimap();
             foreach (var fx in FindObjectsByType<FadeEffect>(FindObjectsSortMode.None))
                 Destroy(fx.gameObject);
             foreach (var block in FindObjectsByType<BoxCollider>(FindObjectsSortMode.None))

@@ -200,6 +200,7 @@ namespace Wings
         float speed, damage, range, travel, blast, slow, charge;
         PlayerAgent owner;
         AIBody attacker;
+        // pierceは敵の身体だけを貫通する指定。壁・地形の遮蔽条件とは分離する。
         bool hostile, pierce, execute, cluster;
         HashSet<Enemy> hit = new HashSet<Enemy>();
 
@@ -245,7 +246,7 @@ namespace Wings
             var from = transform.position;
             var to = from + direction * step;
             bool impact = false;
-            if (!pierce && Physics.SphereCast(from, .12f, direction, out var wallHit, step, Arena.OcclusionMask))
+            if (Physics.SphereCast(from, .12f, direction, out var wallHit, step, Arena.OcclusionMask))
             {
                 to = wallHit.point;
                 impact = true;
@@ -281,6 +282,13 @@ namespace Wings
                     {
                         hit.Add(e);
                         e.Hit(damage, owner, slow, 0, execute && Random.value < .3f);
+                        // 爆発強化したフルチャージ矢は、貫通した各着弾点で爆発しながら進む。
+                        // 通常矢の爆発・壁や射程端での爆発は、従来どおり下段で処理する。
+                        if (pierce && blast > 0)
+                        {
+                            float along = Mathf.Clamp(Vector3.Dot(e.Identity.Center - from, direction), 0, Vector3.Distance(from, to));
+                            AreaField.Explode(from + direction * along, blast, damage, owner, slow);
+                        }
                         if (!pierce)
                         {
                             impact = true;

@@ -334,6 +334,7 @@ namespace Wings
                         this,
                         c,
                         blast,
+                        pierce: charge >= .99f,
                         execute: charge >= .99f,
                         charge: charge);
                     break;
@@ -643,7 +644,8 @@ namespace Wings
         }
 
         /// <summary>
-        /// 射線上の敵へビームの命中を適用する。貫通しない場合は壁と最初の命中で射程を止める。
+        /// 射線上の全ての敵へ一度ずつビームの命中を適用する。敵の貫通と壁の貫通は別の条件。
+        /// throughWallは遮蔽だけの例外で、タカの通常射撃は壁まで、ULT中は壁の向こうにも届く。
         /// </summary>
         public void BeamAttack(float range, float damage, float width, bool throughWall, bool distanceBonus)
         {
@@ -659,11 +661,6 @@ namespace Wings
                 if (along < 0 || along > range || (delta - Aim * along).magnitude > width + (e.Boss ? 1.1f : .6f))
                     continue;
                 e.Hit(damage * (distanceBonus ? 1 + along / 30 : 1), this);
-                if (!throughWall)
-                {
-                    range = along;
-                    break;
-                }
             }
 
             WingsVisual.Beam(origin, origin + Aim * range, Definition.color, width * .3f);

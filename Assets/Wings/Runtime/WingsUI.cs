@@ -159,7 +159,12 @@ namespace Wings
                 Quaternion.identity,
                 Vector3.one * scale);
             if (State == GameState.Playing || State == GameState.Paused || State == GameState.Settings && Party.Count > 0)
+            {
                 HUD();
+                if (State == GameState.Playing)
+                    MapCObservationUI();
+                MinimapUI();
+            }
             if (State != GameState.Playing && State != GameState.Paused && State != GameState.Result && State != GameState.Settings)
                 Box(new Rect(0, 0, 1600, 900), new Color(.02f, .04f, .07f, .45f));
             switch (State)
@@ -190,8 +195,6 @@ namespace Wings
                     break;
             }
 
-            if (State == GameState.Playing)
-                MapCObservationUI();
             if (State == GameState.Playing && ShowAIDebug)
                 AIDebugUI();
             if (State == GameState.Playing && CommandWheel)
@@ -567,7 +570,7 @@ namespace Wings
             if (Training)
             {
                 Text(new Rect(350, 127, 900, 35), "WASD 移動 / マウス 視点 / SPACE ジャンプ / 1～4 操作切替", 19, Cyan, align: TextAnchor.MiddleCenter);
-                if (Button(new Rect(1320, 133, 250, 44), "訓練を終える"))
+                if (Button(new Rect(1320, 482, 250, 44), "訓練を終える"))
                     ToTitle();
             }
         }
