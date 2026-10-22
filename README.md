@@ -30,6 +30,7 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 モデルは仮素材です。`Assets/Wings/Resources/Characters`の設定から見た目のPrefabを差し替えられます。AIの調整値は`Assets/Wings/Resources/WingsAI.asset`にあります。
 
 - [基本仕様・キャラクター・モデル差し替え](Docs/ALPHA_GUIDE.md)
+- [AIコードの読み方（処理の流れと技術の説明）](Docs/AI_CODE_GUIDE.md)
 - [認識・協調AIの仕様と検証結果](Docs/AI_REFINEMENT.md)
 - [AI検証レポート](Docs/AI_Verification/ai-report.json)
 - [既存機能の回帰確認](Docs/AI_Regression/report.json)
