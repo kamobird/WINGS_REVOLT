@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7ae340997911374da366c7b2e7ff32b, type: 3}
+  m_Name: Swallow
+  m_EditorClassIdentifier: Assembly-CSharp::Wings.CharacterDefinition
+  bird: 4
+  displayName: "\u30C4\u30D0\u30E1"
+  callSign: 05 / RAIDEN
+  role: "\u795E\u901F\u30FB\u30AF\u30ED\u30B9\u30EC\u30F3\u30B8"
+  story: "\u30DA\u30F3\u30AE\u30F3\u305F\u3061\u306E\u4E00\u5B66\u5E74\u4E0B\u306E\u751F\u5F92\u3002\u96F7\u6483\u3092\u901F\u3055\u3078\u5909\u3048\u308B\u795E\u901F\u306E\u4F7F\u3044\u624B\u3002\u30E9\u30A4\u30C7\u30F3\u30B2\u30FC\u30B8\u3092\u64CD\u308A\u3001\u81F3\u8FD1\u8DDD\u96E2\u3067\u6226\u5834\u3092\u99C6\u3051\u629C\u3051\u308B\u3002"
+  weapon: "\u30E9\u30A4\u30C8\u30B7\u30E7\u30C3\u30C8\uFF1A\u4E00\u5EA6\u306B\u591A\u6570\u306E\u5149\u5F3E\u3092\u6247\u72B6\u767A\u5C04\u3002\u8FD1\u8DDD\u96E2\u3067\u5F37\u3044\u3002"
+  bomb: "\u30B9\u30D7\u30EA\u30C3\u30C8\u30E9\u30A4\u30C8\uFF1A4\u9023\u5C04\u3002\u5206\u88C2\u3057\u305F\u5149\u5F3E\u304C\u5C0F\u7206\u767A\u3059\u308B\u3002"
+  skill: "\u30E9\u30A4\u30C7\u30F3\u30D3\u30FC\u30E0\uFF1A\u30B2\u30FC\u30B8\u3092\u6D88\u8CBB\u3057\u3066\u5F37\u529B\u306A\u8CAB\u901A\u30D3\u30FC\u30E0\u3002"
+  move: "\u30A2\u30AF\u30BB\u30EB\uFF1A\u30B2\u30FC\u30B8\u3092\u6D88\u8CBB\u3057\u3066\u52A0\u901F\u3002\u518D\u4F7F\u7528\u304B\u6B8B\u91CF0\u3067\u89E3\u9664\u3002"
+  ultimate: "\u30EA\u30DF\u30C3\u30C8\u30D6\u30EC\u30A4\u30AF\uFF1A\u30B2\u30FC\u30B8\u304C\u7121\u9650\u306B\u306A\u308A\u30D3\u30FC\u30E0\u3068\u52A0\u901F\u3092\u5F37\u5316\u3002"
+  color: {r: 1, g: 0.38, b: 0.58, a: 1}
+  health: 125
+  speed: 8.5
+  fireInterval: 0.48
+  damage: 12
+  bombCooldown: 9
+  skillCooldown: 12
+  moveCooldown: 3
+  visualPrefab: {fileID: 0}

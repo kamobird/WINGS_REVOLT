@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7ae340997911374da366c7b2e7ff32b, type: 3}
+  m_Name: Hawk
+  m_EditorClassIdentifier: Assembly-CSharp::Wings.CharacterDefinition
+  bird: 1
+  displayName: "\u30BF\u30AB"
+  callSign: 02 / GALE
+  role: "\u98A8\u30FB\u30ED\u30F3\u30B0\u30EC\u30F3\u30B8"
+  story: "\u30DA\u30F3\u30AE\u30F3\u306B\u8A98\u308F\u308CWINGS\u3078\u52A0\u308F\u3063\u305F\u30AF\u30E9\u30B9\u30E1\u30A4\u30C8\u3002\u98A8\u3092\u5473\u65B9\u306B\u9060\u304F\u306E\u7372\u7269\u3092\u5C04\u629C\u304F\u3002\u6226\u3044\u3092\u300E\u72E9\u308A\u300F\u3068\u547C\u3073\u3001\u697D\u3057\u3080\u4E00\u9762\u3082\u6301\u3064\u3002"
+  weapon: "\u30D3\u30FC\u30E0\u30E9\u30A4\u30D5\u30EB\uFF1A\u4F4E\u9023\u5C04\u30FB\u8D85\u9577\u5C04\u7A0B\u3002\u9060\u3044\u6575\u307B\u3069\u9AD8\u5A01\u529B\u3002"
+  bomb: "\u30C7\u30B3\u30A4\uFF1A\u6575\u3092\u8A98\u5F15\u3002\u518D\u767A\u52D5\u3067\u30C7\u30B3\u30A4\u3092\u7ADC\u5DFB\u306B\u5909\u3048\u308B\u3002"
+  skill: "\u30A2\u30C3\u30D7\u30C9\u30E9\u30D5\u30C8\uFF1A\u98DB\u3073\u4E0A\u304C\u3063\u3066\u5468\u56F2\u306E\u6575\u3092\u5439\u304D\u98DB\u3070\u3059\u3002"
+  move: "\u30EF\u30A4\u30E4\u30FC\uFF1A\u6700\u521D\u306B\u5F53\u305F\u308B\u58C1\u307E\u3067\u9AD8\u901F\u79FB\u52D5\u3002"
+  ultimate: "\u30CF\u30F3\u30BF\u30FC\u30BA\u30A2\u30A4\uFF1A\u6575\u3092\u58C1\u8D8A\u3057\u306B\u6355\u6349\u3057\u3001\u5C04\u6483\u304C\u58C1\u3092\u8CAB\u901A\u3002"
+  color: {r: 0.38, g: 1, b: 0.7, a: 1}
+  health: 140
+  speed: 7
+  fireInterval: 0.95
+  damage: 62
+  bombCooldown: 9
+  skillCooldown: 12
+  moveCooldown: 3
+  visualPrefab: {fileID: 0}
