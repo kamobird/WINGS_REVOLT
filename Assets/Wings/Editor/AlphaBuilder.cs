@@ -99,6 +99,8 @@ namespace Wings.Editor
         [MenuItem("WINGS/Build Tactics")]
         public static void BuildTactics()
         {
+            if (!AssetDatabase.LoadAssetAtPath<AbilityTuning>("Assets/Wings/Resources/WingsAbilities.asset"))
+                AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<AbilityTuning>(), "Assets/Wings/Resources/WingsAbilities.asset");
             AssetDatabase.SaveAssets();
             Directory.CreateDirectory("Builds/Tactics");
             var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Builds/Tactics/WINGS_REVOLT_Tactics.exe", target = BuildTarget.StandaloneWindows64, options = BuildOptions.Development });

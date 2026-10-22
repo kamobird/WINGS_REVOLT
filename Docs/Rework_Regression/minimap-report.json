@@ -1,0 +1,32 @@
+{
+    "passed": true,
+    "checks": [
+        "Registering real enemies cannot reveal them on the minimap",
+        "An enemy seen by a non-controlled ally appears while an unknown enemy stays hidden",
+        "Two allies observing the same enemy produce a single marker",
+        "Collecting map markers never scans or changes AI perception",
+        "Switching the controlled pilot preserves squad-wide minimap knowledge",
+        "Losing sight leaves a memory marker at the last observed coordinate",
+        "Hidden enemy movement cannot move a remembered map marker",
+        "Tower alerts show the event coordinate as memory instead of a live sighting",
+        "Expired knowledge disappears even without a new sensor scan",
+        "Minimap keeps north up and east right",
+        "Actual normal Hawk fire pierces three aligned enemies with one shot",
+        "Normal Hawk fire still stops at cover after piercing enemies",
+        "Hawk distance damage bonus remains active after enemy penetration",
+        "A penetrating Hawk shot consumes only one round",
+        "Hawk ultimate still pierces both enemies and cover",
+        "An actual full-charge Crow projectile pierces three aligned enemies",
+        "Full-charge Crow shots stop at cover and do not damage enemies outside the trajectory",
+        "A penetrating Crow projectile applies direct damage at most once per enemy",
+        "Partially charged Crow shots still stop at the first enemy",
+        "Crow skill-enhanced instant full-charge shots also pierce enemies",
+        "Crow full-charge and explosive enhancements combine penetration with explosions along the path",
+        "Terrain minimap renders in stage 0",
+        "Terrain minimap renders in stage 1",
+        "Terrain minimap renders in stage 2",
+        "Map C minimap distinguishes high and low terrain",
+        "Returning to title releases terrain textures and all minimap information"
+    ],
+    "failure": ""
+}

@@ -9,7 +9,7 @@ namespace Wings
     /// <summary>
     /// 味方キャラの身体と能力の実行部。入力またはSquadBrainの指示を受け、同じ移動・攻撃処理を動かす。
     /// </summary>
-    public sealed class PlayerAgent : MonoBehaviour
+    public sealed partial class PlayerAgent : MonoBehaviour
     {
         public CharacterDefinition Definition { get; private set; }
 
@@ -24,7 +24,8 @@ namespace Wings
         /// </summary>
         public bool Controlled => WingsGame.Instance && WingsGame.Instance.Active == this;
         public bool Accelerating { get; private set; }
-        public int Magazine => Definition.bird == Bird.Penguin ? 36
+        public int Magazine => Definition.magazine > 0 ? Definition.magazine
+            : Definition.bird == Bird.Penguin ? 36
             : Definition.bird == Bird.Hawk ? 6
             : Definition.bird == Bird.Crow ? 8
             : Definition.bird == Bird.Owl ? 10
@@ -103,6 +104,8 @@ namespace Wings
             }
 
             fireTimer -= dt;
+            laserTimer -= dt;
+            LaserFiring = false;
             invincible -= dt;
             BombTimer = Mathf.Max(0, BombTimer - dt);
             SkillTimer = Mathf.Max(0, SkillTimer - dt);
@@ -122,24 +125,14 @@ namespace Wings
                     NovaShots = 0;
             }
 
-            if (Definition.bird == Bird.Swallow)
-            {
-                if (Accelerating && UltimateTimer <= 0)
-                {
-                    Raiden = Mathf.Max(0, Raiden - 22 * dt);
-                    if (Raiden <= 0)
-                        Accelerating = false;
-                }
-                else
-                    Raiden = Mathf.Min(100, Raiden + 14 * dt);
-            }
-
             // 操作中なら入力、未操作ならAIへ振り分ける。自動検証では操作中のキャラもAIへ任せられる。
             if (Controlled)
             {
                 if (g.ObservationMode)
                     Think();
                 else if (!g.SmokeTesting)
+                    Control();
+                else if (g.VerificationInput)
                     Control();
                 else if (g.VerificationAutopilot)
                     Think();
@@ -148,7 +141,10 @@ namespace Wings
             }
             else
                 Think();
-            if (!busy)
+            UpdateRaiden(dt);
+            if (!LaserFiring)
+                laserTimer = Mathf.Max(0, laserTimer);
+            if (!UpdateOwlFlight(dt) && !busy)
             {
                 float speed = Definition.speed * (Accelerating ? (UltimateTimer > 0 ? 2.8f : 2) : 1);
                 if (Definition.bird == Bird.Penguin && UltimateTimer > 0)
@@ -168,8 +164,7 @@ namespace Wings
 
             if (Visual)
             {
-                float lift = Definition.bird == Bird.Owl && NovaShots > 0 ? 3 : 0;
-                Visual.localPosition = Vector3.up * (lift + Mathf.Sin(Time.time * (moveDirection.sqrMagnitude > .1f ? 16
+                Visual.localPosition = Vector3.up * (Mathf.Sin(Time.time * (moveDirection.sqrMagnitude > .1f ? 16
                     : 3)) * (moveDirection.sqrMagnitude > .1f ? .06f
                     : .018f));
             }
@@ -202,9 +197,11 @@ namespace Wings
             }
 
             moveDirection = Quaternion.Euler(0, g.CameraYaw, 0) * new Vector3(input.x, 0, input.y).normalized;
-            var ray = g.Viewport.ViewportPointToRay(new Vector3(.5f, .5f, 0));
+            var ray = OwlFlying && mouse != null
+                ? g.Viewport.ScreenPointToRay(mouse.position.ReadValue())
+                : g.Viewport.ViewportPointToRay(new Vector3(.5f, .5f, 0));
             AimPoint = ray.origin + ray.direction * 60;
-            if (Physics.Raycast(ray, out var hit, 80, ~(1 << 9), QueryTriggerInteraction.Ignore))
+            if (Physics.Raycast(ray, out var hit, OwlFlying ? 400 : 80, ~(1 << 9), QueryTriggerInteraction.Ignore))
                 AimPoint = hit.point;
             Aim = (AimPoint - (transform.position + Vector3.up * 1.2f)).normalized;
             if (mouse != null)
@@ -289,17 +286,29 @@ namespace Wings
         /// </summary>
         public void Fire(float charge = 0)
         {
-            if (Downed || busy || ReloadTimer > 0 || fireTimer > 0 || Ammo <= 0)
+            if (Downed || busy)
                 return;
-            if (NovaShots > 0)
+            // ゲージ武器と空中爆撃は通常弾倉・装填から独立させる。
+            if (LaserActive)
             {
+                FireRaidenLaser();
+                return;
+            }
+            if (OwlFlying)
+            {
+                if (!OwlBombarding || !OwlAtAltitude || fireTimer > 0)
+                    return;
                 NovaShots--;
-                AreaField.Explode(AimGround(), 8, 240, this, 0, 0, true);
+                var at = AimGround();
+                WingsVisual.Beam(transform.position, at + Vector3.up, Definition.color, .7f);
+                AreaField.Explode(at, AbilityTuning.Current.novaRadius, AbilityTuning.Current.novaDamage, this, 0, 0, true);
                 fireTimer = .7f;
                 if (NovaShots == 0)
                     UltimateTimer = 0;
                 return;
             }
+            if (ReloadTimer > 0 || fireTimer > 0 || Ammo <= 0)
+                return;
 
             if (Definition.bird == Bird.Penguin && UltimateTimer > 0)
                 return;
@@ -342,6 +351,7 @@ namespace Wings
                     Projectile.Fire(muzzle, Aim, 20, damage, 12, this, c, 3.8f);
                     break;
                 case Bird.Swallow:
+                    // 一斉射で命中済みを共有せず、7発それぞれがProjectile自身の命中記録を持つ。同じ敵への複数命中を許す。
                     for (int i = 0; i < 7; i++)
                         Projectile.Fire(muzzle, Quaternion.Euler(0, (i - 3) * 4, 0) * Aim, 32, damage, 13, this, c);
                     break;
@@ -366,6 +376,8 @@ namespace Wings
         /// </summary>
         public Vector3 AimGround()
         {
+            if (OwlFlying)
+                return Arena.Ground(AimPoint);
             var planar = Arena.Ground(AimPoint) - Arena.Ground(transform.position);
             return Arena.Ground(transform.position + Vector3.ClampMagnitude(planar, 22));
         }
@@ -375,7 +387,7 @@ namespace Wings
         /// </summary>
         public void Bomb()
         {
-            if (Downed || busy)
+            if (Downed || busy || OwlFlying)
                 return;
             if (Definition.bird == Bird.Hawk && Decoy)
             {
@@ -436,14 +448,15 @@ namespace Wings
         /// </summary>
         public void Skill()
         {
-            if (Downed || busy || SkillTimer > 0)
+            if (Downed || busy || OwlFlying)
                 return;
-            if (Definition.bird == Bird.Swallow && Raiden < 40 && UltimateTimer <= 0)
+            if (Definition.bird == Bird.Swallow)
             {
-                if (Controlled)
-                    WingsGame.Instance.Notify("ライデンゲージが40必要");
+                ToggleLaser();
                 return;
             }
+            if (SkillTimer > 0)
+                return;
 
             SkillTimer = Definition.skillCooldown;
             switch (Definition.bird)
@@ -479,11 +492,6 @@ namespace Wings
                 case Bird.Owl:
                     AreaField.Create(AimGround(), 6, 7, 48, this, meteor: true);
                     break;
-                case Bird.Swallow:
-                    if (UltimateTimer <= 0)
-                        Raiden -= 40;
-                    BeamAttack(UltimateTimer > 0 ? 55 : 34, UltimateTimer > 0 ? 220 : 130, UltimateTimer > 0 ? 1.7f : 1, true, false);
-                    break;
             }
 
             WingsGame.Instance.Sound(700, .12f, .1f);
@@ -494,7 +502,7 @@ namespace Wings
         /// </summary>
         public void MoveAbility()
         {
-            if (Downed || busy)
+            if (Downed || busy || OwlFlying)
                 return;
             if (Definition.bird == Bird.Swallow)
             {
@@ -592,7 +600,7 @@ namespace Wings
         /// </summary>
         public void UseUltimate()
         {
-            if (Downed || busy || Ultimate < 100)
+            if (Downed || busy || OwlFlying || UltimateTimer > 0 || Ultimate < 100)
                 return;
             Ultimate = 0;
             WingsGame.Instance.Notify(Definition.displayName
@@ -617,9 +625,7 @@ namespace Wings
 
                     break;
                 case Bird.Owl:
-                    NovaShots = 3;
-                    UltimateTimer = 15;
-                    invincible = 15;
+                    BeginOwlFlight();
                     break;
                 case Bird.Swallow:
                     UltimateTimer = 12;
@@ -686,6 +692,7 @@ namespace Wings
                 UltimateTimer = 0;
                 NovaShots = 0;
                 ReloadTimer = 0;
+                ClearReworkedAbilities();
                 motor.enabled = false;
                 RespawnTimer = 12;
                 Visual.gameObject.SetActive(false);

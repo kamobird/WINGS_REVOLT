@@ -288,7 +288,10 @@ namespace Wings.AI
             forward.y = 0;
             if (!ignoreHorizontalFov && flat.sqrMagnitude > .001f && Vector3.Angle(forward, flat) > Settings.horizontalFov * .5f)
                 return false;
-            float elevation = Mathf.Atan2(Mathf.Abs(delta.y), Mathf.Max(.01f, flat.magnitude)) * Mathf.Rad2Deg;
+            // フクロウの高空爆撃中は、水平面ではなく真下を基準にした視野。実際の距離・遮蔽は通常どおり検査する。
+            float elevation = owner.Pilot && owner.Pilot.OwlBombarding
+                ? Vector3.Angle(Vector3.down, delta)
+                : Mathf.Atan2(Mathf.Abs(delta.y), Mathf.Max(.01f, flat.magnitude)) * Mathf.Rad2Deg;
             if (elevation > Settings.verticalFov * .5f)
                 return false;
             // 能力による壁越し視認は遮蔽だけの例外。距離と視野角の検査を終えた後に適用する。

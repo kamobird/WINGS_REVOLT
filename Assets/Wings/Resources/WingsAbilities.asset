@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bda309aedb23444ca3d18d2dd766b17, type: 3}
+  m_Name: WingsAbilities
+  m_EditorClassIdentifier: Assembly-CSharp::Wings.AbilityTuning
+  novaRadius: 20
+  novaDamage: 240
+  novaDuration: 18
+  minimumFlightHeight: 80
+  flightExtentMultiplier: 1.8
+  ascentSeconds: 0.6
+  descentSeconds: 0.75
+  laserDamagePerSecond: 600
+  empoweredLaserDamagePerSecond: 900
+  laserTickInterval: 0.1
+  laserRange: 34
+  empoweredLaserRange: 55
+  laserWidth: 1
+  empoweredLaserWidth: 1.7
+  laserDrainPerSecond: 30
+  accelerationDrainPerSecond: 22
+  raidenRecoveryPerSecond: 14

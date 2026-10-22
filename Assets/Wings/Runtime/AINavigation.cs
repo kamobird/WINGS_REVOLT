@@ -212,6 +212,9 @@ namespace Wings.AI
                         {
                             if (!other || other == body || !other.Alive)
                                 continue;
+                            // 高空のフクロウなど、高さが重ならない身体の真下を地上の仲間が避け続けないようにする。
+                            if (body.Position.y + body.Height < other.Position.y || other.Position.y + other.Height < body.Position.y)
+                                continue;
                             Vector3 delta = body.Position - other.Position;
                             delta.y = 0;
                             float distance = delta.magnitude;

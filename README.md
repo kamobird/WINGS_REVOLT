@@ -32,6 +32,9 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 
 モデルは仮素材です。`Assets/Wings/Resources/Characters`の設定から見た目のPrefabを差し替えられます。AIの調整値は`Assets/Wings/Resources/WingsAI.asset`にあります。
 
+フクロウの爆撃とツバメのレーザーは`Assets/Wings/Resources/WingsAbilities.asset`で、ツバメの連射間隔・装弾数は`Assets/Wings/Resources/Characters/Swallow.asset`で調整できます。
+
+- [フクロウの高空爆撃・ツバメのリワークと調整箇所](Docs/OWL_AND_SWALLOW_REWORK.md)
 - [ミニマップ・敵を貫通する射撃・調整箇所](Docs/MINIMAP_AND_PIERCING.md)
 - [敵の協調・引き撃ち・被弾認識・個別指示](Docs/TACTICAL_AI_GUIDE.md)
 - [mapCの地形・観察モード・高さ対応](Docs/MAP_C_GUIDE.md)
@@ -46,6 +49,6 @@ URP、Input System、AI Navigationを使用します。依存パッケージは`
 
 Unityのメニューから **WINGS > Build Tactics** を実行します。A/B/Cを含む`Builds/Tactics/WINGS_REVOLT_Tactics.exe`が生成されます。Windows向けのビルドサポートが必要です。
 
-`--wings-minimap-test --wings-report <出力先>`でミニマップと貫通射撃を、`--wings-tactics-test`で協調・自己防衛・個別指示を確認できます。`--wings-mapc-test`でmapCの地形と実移動、`--wings-ai-test`で認識・協調、`--wings-smoke`で既存機能の回帰確認も実行できます。
+`--wings-rework-test --wings-report <出力先>`でフクロウの高空爆撃とツバメの長押しレーザーを確認できます。`--wings-minimap-test`でミニマップと貫通射撃、`--wings-tactics-test`で戦術AI、`--wings-mapc-test`でmapC、`--wings-ai-test`で認識・協調、`--wings-smoke`で既存機能の回帰確認も実行できます。
 
 Unityの生成キャッシュ、個人用設定、ビルド済みファイルは`.gitignore`で除外しています。難易度や操作感はα版として調整中です。

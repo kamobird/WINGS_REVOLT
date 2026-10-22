@@ -2,6 +2,8 @@
 
 まずは **`PlayerAgent.Think` → `SquadBrain.Tick` → `VisionSensor.Tick` → `SquadBrain.Decide`** の順で読むと、味方が動くまでの流れを追えます。ファイルはすべて `Assets/Wings/Runtime` にあります。
 
+フクロウの高空での視覚・爆撃と、ツバメの継続レーザーの状態管理は [高空爆撃・リワーク](OWL_AND_SWALLOW_REWORK.md) も参照してください。飛行中は専用の判断分岐を通り、実際の高い目の位置から遮蔽を検査します。
+
 読みやすさを整えた時点（`d10f88c`）では、コメント・空白・改行だけを変更しました。その後の機能追加である、敵の攻撃枠と進行分散、被弾時の自己防衛、タワー通知、個別指示については [TACTICAL_AI_GUIDE.md](TACTICAL_AI_GUIDE.md) を併せて参照してください。
 
 ## 1. 「知る」「決める」「動く」を分ける

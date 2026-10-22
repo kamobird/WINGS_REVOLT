@@ -180,6 +180,11 @@ namespace Wings
                 SmokeTesting = true;
                 StartCoroutine(RunMinimapValidation());
             }
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "--wings-rework-test") >= 0)
+            {
+                SmokeTesting = true;
+                StartCoroutine(RunReworkValidation());
+            }
         }
 
         /// <summary>
@@ -220,7 +225,7 @@ namespace Wings
         /// </summary>
         void UpdateCursor()
         {
-            bool locked = State == GameState.Playing && !CommandWheel && !SmokeTesting && !ObservationMode;
+            bool locked = State == GameState.Playing && !CommandWheel && !SmokeTesting && !ObservationMode && !(Active && Active.OwlFlying);
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
         }
@@ -282,7 +287,7 @@ namespace Wings
                 }
             }
 
-            if (!CommandWheel && !ObservationMode && mouse != null)
+            if (!CommandWheel && !ObservationMode && !(Active && Active.OwlFlying) && mouse != null)
             {
                 Vector2 delta = mouse.delta.ReadValue();
                 CameraYaw += delta.x * Sensitivity;
@@ -377,6 +382,12 @@ namespace Wings
                 UpdateObservationCamera();
                 return;
             }
+            if (Active && Active.OwlFlying && (State == GameState.Playing || State == GameState.Paused || State == GameState.Settings))
+            {
+                UpdateBombardmentCamera();
+                return;
+            }
+            Viewport.orthographic = false;
 
             if ((State == GameState.Playing
                 || State == GameState.Paused
@@ -412,6 +423,7 @@ namespace Wings
                 return;
             Active?.CancelCharge();
             activeIndex = index;
+            RefreshCombatCamera();
             Sound(600, .06f, .07f);
         }
 

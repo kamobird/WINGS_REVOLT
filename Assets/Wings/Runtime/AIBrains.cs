@@ -83,16 +83,17 @@ namespace Wings.AI
         public float PreferredRange => pilot.Definition.bird == Bird.Hawk ? 24
             : pilot.Definition.bird == Bird.Crow ? 19
             : pilot.Definition.bird == Bird.Owl ? 9
-            : pilot.Definition.bird == Bird.Swallow ? 6
+            : pilot.Definition.bird == Bird.Swallow ? (pilot.LaserActive ? 18 : 6)
             : 14;
 
         /// <summary>
         /// CanFireへ渡すAIの射程確認値。実際の弾やビームの生成・命中処理はPlayerAgentが担当する。
         /// </summary>
-        public float WeaponRange => pilot.Definition.bird == Bird.Hawk ? 65
+        public float WeaponRange => pilot.OwlBombarding ? pilot.BombardmentRange
+            : pilot.Definition.bird == Bird.Hawk ? 65
             : pilot.Definition.bird == Bird.Crow ? 54
             : pilot.Definition.bird == Bird.Owl ? 14
-            : pilot.Definition.bird == Bird.Swallow ? 13
+            : pilot.Definition.bird == Bird.Swallow ? (pilot.LaserActive ? pilot.LaserRange : 13)
             : 42;
 
         float nextDecision, lastTargetChanged, nextLog, investigatedAt;
@@ -101,6 +102,7 @@ namespace Wings.AI
         BrainState lastState;
         Contact damageEvidence;
         float defendUntil;
+        readonly float normalSightRange;
         static readonly float[] retreatAngles = { 0f, 35, -35, 70, -70 };
         public SquadOrder Order => WingsGame.Instance.OrderFor(pilot);
 
@@ -112,10 +114,11 @@ namespace Wings.AI
             pilot = owner;
             body = identity;
             Sensor = new VisionSensor(identity);
-            Sensor.Settings.range = owner.Definition.bird == Bird.Hawk ? 55
+            normalSightRange = owner.Definition.bird == Bird.Hawk ? 55
                 : owner.Definition.bird == Bird.Crow ? 43
                 : owner.Definition.bird == Bird.Swallow ? 25
                 : 34;
+            Sensor.Settings.range = normalSightRange;
             identity.Sensor = Sensor;
             FollowLeash = AIConfiguration.Current.followLeash;
             DefenseLeash = AIConfiguration.Current.defenseLeash;
@@ -257,7 +260,7 @@ namespace Wings.AI
 
             Intent.Fire = Intent.Target != null
                 && Sensor.CanFire(Intent.Target, WeaponRange, body.Position + Vector3.up * 1.2f, Sensor.WallVision);
-            if (pilot.ReloadTimer > 0)
+            if (pilot.ReloadTimer > 0 && !pilot.LaserActive && !pilot.OwlBombarding)
                 Intent.Fire = false;
             body.DebugState = Intent.State + " / " + Intent.Reason;
             return Intent;
@@ -268,6 +271,9 @@ namespace Wings.AI
         /// </summary>
         public void Observe(float now)
         {
+            // 高空爆撃だけは実際の高い目の位置から下を見る。通常時の視覚モデルへ例外を持ち越さない。
+            Sensor.Settings.range = pilot.OwlBombarding ? pilot.BombardmentRange : normalSightRange;
+            Sensor.Settings.horizontalFov = pilot.OwlBombarding ? 360 : AIConfiguration.Current.allyFov;
             Sensor.WallVision = pilot.Definition.bird == Bird.Hawk && pilot.UltimateTimer > 0;
             Sensor.Tick(now);
             foreach (var c in Sensor.Visible)
@@ -280,6 +286,19 @@ namespace Wings.AI
         /// </summary>
         void Decide(float now)
         {
+            if (pilot.OwlFlying)
+            {
+                var observed = pilot.OwlBombarding && pilot.OwlAtAltitude ? ChooseTarget(now) : null;
+                Intent = new BrainIntent
+                {
+                    State = observed != null ? BrainState.Attack : BrainState.Guard,
+                    Reason = observed != null ? "高空から直接視認した地点を爆撃" : "上昇・降下または高空で目視を待つ",
+                    Target = observed,
+                    Destination = Arena.Ground(body.Position),
+                    Look = observed != null ? (observed.Position - body.Center).normalized : Vector3.down
+                };
+                return;
+            }
             // 【FSMの選択順】基本の待機指示を作り、優先する条件で上書きする。
             // 帰還→目視相手への位置調整/攻撃→記憶の捜索→巡回/警戒、の順。
             var g = WingsGame.Instance;
@@ -468,6 +487,17 @@ namespace Wings.AI
             }
 
             bool engage = Sensor.CanFire(intent.Target, WeaponRange, body.Position + Vector3.up * 1.2f, Sensor.WallVision);
+            if (pilot.Definition.bird == Bird.Swallow)
+            {
+                // トグルを毎判断で反転させない。開始45・停止12の残量差で切替の揺れを抑える。
+                bool canLaser = Sensor.CanFire(intent.Target, pilot.LaserRange, body.Position + Vector3.up * 1.2f, true);
+                intent.Skill = pilot.UltimateTimer <= 0 && (pilot.LaserMode
+                    ? pilot.Raiden < 12 || !canLaser
+                    : pilot.Raiden >= 45 && canLaser && (distance > 9 || clustered >= 2));
+                intent.Bomb = engage && distance < 13 && clustered >= 2;
+                intent.Ultimate = close >= 2;
+                return;
+            }
             if (!engage || intent.State == BrainState.Regroup)
                 return;
             // 【キャラ別ルール】範囲攻撃は集団、近距離の拒否能力は接近した敵を基準にする。
@@ -498,11 +528,6 @@ namespace Wings.AI
                     intent.Bomb = close >= 2;
                     intent.Skill = distance < 22 && clustered >= 2;
                     intent.Ultimate = clustered >= 3;
-                    break;
-                case Bird.Swallow:
-                    intent.Bomb = distance < 13 && clustered >= 2;
-                    intent.Skill = distance < 32 && clustered >= 2 && pilot.Raiden >= 55;
-                    intent.Ultimate = close >= 2;
                     break;
             }
         }

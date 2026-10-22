@@ -28,6 +28,8 @@ namespace Wings
         public string weapon, bomb, skill, move, ultimate;
         public Color color = Color.cyan;
         public float health = 160, speed = 7, fireInterval = .18f, damage = 16;
+        [Tooltip("0なら従来のキャラ別装弾数。正の値で装弾数を指定する。")]
+        [Min(0)] public int magazine;
         public float bombCooldown = 9, skillCooldown = 12, moveCooldown = 3;
         [Tooltip("Visual only. Keep physics and gameplay on the Player root. Faces local +Z, feet at Y=0.")]
         public GameObject visualPrefab;
@@ -98,7 +100,7 @@ namespace Wings
                     d.bomb = "オクタブラスト：周囲8方向に近距離ブラスターを放つ。";
                     d.skill = "メテオフィールド：狙った地点に隕石を繰り返し落とす。";
                     d.move = "ブラストジャンプ：爆風で移動方向へ高速移動。";
-                    d.ultimate = "スーパーノヴァ：上空へ飛び、3回まで超大爆発を撃ち下ろす。";
+                    d.ultimate = "スーパーノヴァ：全域を見渡す高空へ飛び、狙った地点を3回まで広域爆撃。";
                     break;
                 case Bird.Swallow:
                     d.displayName = "ツバメ";
@@ -107,14 +109,15 @@ namespace Wings
                     d.color = new Color(1, .38f, .58f);
                     d.health = 125;
                     d.speed = 8.5f;
-                    d.fireInterval = .48f;
+                    d.fireInterval = .18f;
+                    d.magazine = 30;
                     d.damage = 12;
                     d.story = "ペンギンたちの一学年下の生徒。雷撃を速さへ変える神速の使い手。ライデンゲージを操り、至近距離で戦場を駆け抜ける。";
                     d.weapon = "ライトショット：一度に多数の光弾を扇状発射。近距離で強い。";
                     d.bomb = "スプリットライト：4連射。分裂した光弾が小爆発する。";
-                    d.skill = "ライデンビーム：ゲージを消費して強力な貫通ビーム。";
+                    d.skill = "ライデンレーザー：Qで切替、射撃長押しでゲージを消費。加速と併用できる。";
                     d.move = "アクセル：ゲージを消費して加速。再使用か残量0で解除。";
-                    d.ultimate = "リミットブレイク：ゲージが無限になりビームと加速を強化。";
+                    d.ultimate = "リミットブレイク：ゲージ無限。強化レーザーを常時選択し、加速も強化。";
                     break;
             }
 

@@ -162,7 +162,10 @@ namespace Wings
             {
                 HUD();
                 if (State == GameState.Playing)
+                {
                     MapCObservationUI();
+                    OwlBombardmentUI();
+                }
                 MinimapUI();
             }
             if (State != GameState.Playing && State != GameState.Paused && State != GameState.Result && State != GameState.Settings)
@@ -458,16 +461,21 @@ namespace Wings
                 White);
             Bar(new Rect(375, 856, 206, 5), p.Health / p.Definition.health, c);
             Text(new Rect(615, 781, 230, 35),
-                p.ReloadTimer > 0 ? "RELOADING " + p.ReloadTimer.ToString("0.0")
+                p.LaserActive ? "RAIDEN LASER"
+                : p.OwlFlying ? "NOVA / " + p.NovaShots
+                : p.ReloadTimer > 0 ? "RELOADING " + p.ReloadTimer.ToString("0.0")
                 : p.Ammo.ToString("00")
                 + " / " + p.Magazine,
                 25,
                 White,
                 FontStyle.Bold);
-            Text(new Rect(615, 823, 210, 25), p.Definition.bird == Bird.Crow ? "LMB 長押し / R 装填" : "LMB 射撃 / R 装填", 15, Muted);
-            AbilityUI(874, "Q", p.SkillTimer, "SKILL", c);
-            AbilityUI(964, "E", p.BombTimer, p.Decoy ? "再発動" : "BOMB", c);
-            AbilityUI(1054, "SHIFT", p.MoveTimer, p.Accelerating ? "加速中" : "MOVE", c);
+            Text(new Rect(615, 823, 240, 25), p.OwlFlying ? "カーソル照準 / LMB 爆撃"
+                : p.LaserActive ? (p.UltimateTimer > 0 ? "LMB 長押し / ULT固定" : "LMB 長押し / Q 解除")
+                : p.Definition.bird == Bird.Crow ? "LMB 長押し / R 装填" : "LMB 射撃 / R 装填", 15, Muted);
+            AbilityUI(874, "Q", p.SkillTimer, p.LaserActive ? "レーザー中" : p.Definition.bird == Bird.Swallow ? "LASER" : "SKILL", c,
+                p.OwlFlying ? "飛行中" : p.LaserActive ? (p.UltimateTimer > 0 ? "ULT" : "ON") : "READY");
+            AbilityUI(964, "E", p.BombTimer, p.Decoy ? "再発動" : "BOMB", c, p.OwlFlying ? "飛行中" : "READY");
+            AbilityUI(1054, "SHIFT", p.MoveTimer, p.Accelerating ? "加速中" : "MOVE", c, p.OwlFlying ? "飛行中" : "READY");
             Box(new Rect(1270, 767, 300, 105), Panel);
             Text(new Rect(1287, 778, 270, 38),
                 "X  ULTIMATE   " + Mathf.FloorToInt(p.Ultimate)
@@ -478,7 +486,7 @@ namespace Wings
                 FontStyle.Bold);
             Bar(new Rect(1289, 833, 260, 9), p.Ultimate / 100, c);
             if (p.NovaShots > 0)
-                Text(new Rect(550, 693, 500, 36),
+                Text(new Rect(450, 693, 700, 36),
                     "SUPERNOVA / LMBで爆撃  残り " + p.NovaShots
                     + " 発",
                     22,
@@ -517,7 +525,7 @@ namespace Wings
                     c,
                     FontStyle.Bold,
                     TextAnchor.MiddleRight);
-            if (State == GameState.Playing && !CommandWheel)
+            if (State == GameState.Playing && !CommandWheel && !p.OwlFlying)
             {
                 Box(new Rect(788, 449, 8, 2), White);
                 Box(new Rect(804, 449, 8, 2), White);
@@ -578,13 +586,13 @@ namespace Wings
         /// <summary>
         /// 能力キーと、使用可能か残りクールダウンかを描く共通部品。
         /// </summary>
-        void AbilityUI(float x, string key, float cooldown, string title, Color c)
+        void AbilityUI(float x, string key, float cooldown, string title, Color c, string ready = "READY")
         {
             Box(new Rect(x, 782, 78, 56), cooldown > 0 ? new Color(.1f, .14f, .18f) : new Color(.12f, .27f, .32f));
             Text(new Rect(x, 785, 78, 25), key, 15, c, FontStyle.Bold, TextAnchor.MiddleCenter);
             Text(new Rect(x, 812, 78, 23),
                 cooldown > 0 ? cooldown.ToString("0.0")
-                : "READY",
+                : ready,
                 15,
                 cooldown > 0 ? Muted
                 : White,

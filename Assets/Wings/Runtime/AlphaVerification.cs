@@ -221,7 +221,7 @@ namespace Wings
                     p.MoveAbility();
                     Check(!p.Accelerating, "Swallow toggles acceleration off");
                     p.Skill();
-                    Check(p.Raiden == 60, "Swallow skill spends 40 gauge");
+                    Check(p.LaserMode && p.Raiden == 100, "Swallow Q selects laser mode without spending gauge until firing");
                     p.Ultimate = 100;
                     p.UseUltimate();
                     Check(p.UltimateTimer > 0 && p.Raiden == 100, "Swallow ultimate restores and unlocks gauge");
@@ -236,7 +236,7 @@ namespace Wings
                     p.Hit(99);
                     Check(p.Health == safeHp, "Owl aerial ultimate grants invulnerability");
                     Time.timeScale = 10;
-                    yield return new WaitForSeconds(16);
+                    yield return new WaitForSeconds(AbilityTuning.Current.novaDuration + AbilityTuning.Current.descentSeconds + .5f);
                     Time.timeScale = 1;
                 }
 
